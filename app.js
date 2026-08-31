@@ -327,4 +327,21 @@ function registerServiceWorker() {
       .then(() => console.log('Service Worker Registered'))
       .catch(err => console.error('SW Failed', err));
   }
+
+  // Tambahkan di bagian paling bawah app.js
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showToast("Aplikasi siap di-install! Ketuk titik tiga > Install App");
+});
+
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => console.log('SW terdaftar pada scope:', reg.scope))
+      .catch((err) => console.error('SW Gagal:', err));
+  }
+}
 }
