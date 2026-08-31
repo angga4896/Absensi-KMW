@@ -3,165 +3,206 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Absensi & Gaji Kedae UMKM</title>
+  <title>Kedae Absensi & Gaji</title>
   
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS & Inter Font -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- PWA Manifest & Theme Color -->
+  <!-- PWA Metadata -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2563eb">
-  <link rel="apple-touch-icon" href="https://via.placeholder.com/192x192.png?text=Absensi">
+  <meta name="theme-color" content="#4f46e5">
 
   <style>
-    body { -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col justify-between">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
 
-  <!-- Header Top Bar -->
-  <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
+  <!-- Floating Toast Notification -->
+  <div id="toast" class="hidden fixed top-5 left-1/2 -translate-x-1/2 bg-indigo-600/90 backdrop-blur-md text-white text-xs px-4 py-2.5 rounded-full shadow-2xl z-50 flex items-center gap-2 border border-indigo-400/30 transition-all duration-300">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span id="toast-text">Notifikasi</span>
+  </div>
+
+  <!-- Glassmorphism Header -->
+  <header class="bg-slate-800/80 backdrop-blur-lg border-b border-slate-700/50 sticky top-0 z-40 px-4 py-3.5">
     <div class="max-w-md mx-auto flex justify-between items-center">
-      <h1 class="font-bold text-lg tracking-wide">Kedae Absensi & Gaji</h1>
-      <span id="current-date" class="text-xs bg-blue-700 px-2 py-1 rounded"></span>
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-600/30">
+          K
+        </div>
+        <div>
+          <h1 class="font-bold text-sm tracking-tight text-white">Kedae Mattowa</h1>
+          <p class="text-[10px] text-slate-400 font-medium">Absensi & Penggajian</p>
+        </div>
+      </div>
+      <span id="current-date" class="text-[11px] font-medium bg-slate-700/60 text-slate-300 px-2.5 py-1 rounded-full border border-slate-600/40"></span>
     </div>
   </header>
 
-  <!-- Main Content Area -->
-  <main class="max-w-md mx-auto w-full p-4 flex-grow mb-16">
+  <!-- Main Container -->
+  <main class="max-w-md mx-auto w-full p-4 flex-grow space-y-4 mb-20">
 
-    <!-- Toast Notification -->
-    <div id="toast" class="hidden fixed top-16 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50"></div>
-
-    <!-- 1. TAB DASHBOARD ABSENSI -->
+    <!-- 1. TAB ABSENSI -->
     <section id="tab-absensi" class="space-y-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <h2 class="text-md font-semibold text-slate-700 mb-3">Form Absensi Harian</h2>
-        
-        <form id="form-absensi" class="space-y-3">
+      
+      <!-- Card Form Absensi -->
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-4">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Catat Kehadiran Harian</h2>
+        </div>
+
+        <form id="form-absensi" class="space-y-3.5">
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Pilih Karyawan</label>
-            <select id="absen-karyawan" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-              <option value="">Memuat data karyawan...</option>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1.5">Pilih Karyawan</label>
+            <select id="absen-karyawan" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition" required>
+              <option value="">Memuat data...</option>
             </select>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Status Kehadiran</label>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1.5">Status Kehadiran</label>
             <div class="grid grid-cols-3 gap-2">
               <label class="cursor-pointer">
                 <input type="radio" name="status" value="Hadir" class="peer hidden" checked>
-                <div class="p-2.5 text-center text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-600 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 transition">Hadir</div>
+                <div class="py-2 px-3 text-center text-xs font-semibold rounded-xl border border-slate-700 bg-slate-900/50 text-slate-400 peer-checked:bg-emerald-500/20 peer-checked:text-emerald-400 peer-checked:border-emerald-500/50 transition">Hadir</div>
               </label>
               <label class="cursor-pointer">
                 <input type="radio" name="status" value="Izin" class="peer hidden">
-                <div class="p-2.5 text-center text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-600 peer-checked:bg-amber-500 peer-checked:text-white peer-checked:border-amber-500 transition">Izin</div>
+                <div class="py-2 px-3 text-center text-xs font-semibold rounded-xl border border-slate-700 bg-slate-900/50 text-slate-400 peer-checked:bg-amber-500/20 peer-checked:text-amber-400 peer-checked:border-amber-500/50 transition">Izin</div>
               </label>
               <label class="cursor-pointer">
                 <input type="radio" name="status" value="Alpa" class="peer hidden">
-                <div class="p-2.5 text-center text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-600 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-600 transition">Alpa</div>
+                <div class="py-2 px-3 text-center text-xs font-semibold rounded-xl border border-slate-700 bg-slate-900/50 text-slate-400 peer-checked:bg-rose-500/20 peer-checked:text-rose-400 peer-checked:border-rose-500/50 transition">Alpa</div>
               </label>
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Catatan / Alasan (Opsional)</label>
-            <input type="text" id="absen-catatan" placeholder="Contoh: Sakit flu / Keperluan keluarga" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <label class="block text-[11px] font-medium text-slate-400 mb-1.5">Catatan / Alasan</label>
+            <input type="text" id="absen-catatan" placeholder="Sakit flu / Keperluan keluarga" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
           </div>
 
-          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-medium py-2.5 rounded-lg text-sm shadow transition">
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/25 transition">
             Simpan Absensi
           </button>
         </form>
       </div>
+
+      <!-- Card Daftar Absensi Hari Ini -->
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-3">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Absen Hari Ini</h2>
+          </div>
+          <span id="total-absen-today" class="text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">0</span>
+        </div>
+
+        <div id="list-absen-hari-ini" class="space-y-2">
+          <p class="text-xs text-slate-500 py-2">Memuat data absensi...</p>
+        </div>
+      </div>
+
     </section>
 
     <!-- 2. TAB KELOLA KARYAWAN -->
     <section id="tab-karyawan" class="hidden space-y-4">
       
-      <!-- Form Tambah Karyawan Baru -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <h2 class="text-md font-semibold text-slate-700 mb-3">+ Tambah Karyawan Baru</h2>
+      <!-- Card Form Tambah Karyawan -->
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-3.5">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Tambah Karyawan Baru</h2>
+        </div>
+
         <form id="form-tambah-karyawan" class="space-y-3">
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Nama Lengkap</label>
-            <input type="text" id="add-nama" placeholder="Contoh: Budi Santoso" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm" required>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Nama Lengkap</label>
+            <input type="text" id="add-nama" placeholder="Contoh: Budi Santoso" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition" required>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Jabatan</label>
-            <input type="text" id="add-jabatan" placeholder="Contoh: Staf Dapur / Kasir" value="Staf" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm" required>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Jabatan</label>
+            <input type="text" id="add-jabatan" placeholder="Staf Dapur / Kasir" value="Staf" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition" required>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-xs font-medium text-slate-500 mb-1">Tipe Penggajian</label>
-              <select id="add-tipe-gaji" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm" required onchange="updateDefaultRate()">
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Tipe Gaji</label>
+              <select id="add-tipe-gaji" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition" required onchange="updateDefaultRate()">
                 <option value="Harian">Harian</option>
                 <option value="Mingguan">Mingguan</option>
                 <option value="Bulanan">Bulanan</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-500 mb-1">Nominal Gaji (Rp)</label>
-              <input type="number" id="add-rate-gaji" placeholder="50000" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm" required>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Rate Gaji (Rp)</label>
+              <input type="number" id="add-rate-gaji" placeholder="50000" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition" required>
             </div>
           </div>
 
-          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-lg text-sm shadow transition">
-            Simpan Karyawan Baru
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-600/25 transition">
+            Simpan Karyawan
           </button>
         </form>
       </div>
 
-      <!-- List Karyawan -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <h2 class="text-md font-semibold text-slate-700 mb-3">Daftar Karyawan Terdaftar</h2>
+      <!-- Card List Karyawan -->
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Daftar Karyawan</h2>
         <div id="list-karyawan" class="space-y-2"></div>
       </div>
 
     </section>
 
-    <!-- 3. TAB LAPORAN GAJI & STATUS PEMBAYARAN -->
+    <!-- 3. TAB LAPORAN GAJI -->
     <section id="tab-laporan" class="hidden space-y-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <h2 class="text-md font-semibold text-slate-700 mb-3">Tracking & Status Gaji</h2>
-        
-        <div class="space-y-3 mb-4">
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-4">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Tracking & Kalkulasi Gaji</h2>
+        </div>
+
+        <div class="space-y-3">
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Pilih Karyawan</label>
-            <select id="laporan-karyawan" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm"></select>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Pilih Karyawan</label>
+            <select id="laporan-karyawan" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition"></select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Periode Bulan</label>
-            <input type="month" id="laporan-bulan" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm">
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Periode Bulan</label>
+            <input type="month" id="laporan-bulan" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
           </div>
-          <button id="btn-hitung-gaji" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg text-sm shadow transition">
-            Cek & Hitung Gaji
+          <button id="btn-hitung-gaji" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/25 transition">
+            Cek Kalkulasi Gaji
           </button>
         </div>
 
-        <!-- Output Result Gaji & Status Bayar -->
-        <div id="hasil-gaji" class="hidden border-t border-slate-100 pt-4 space-y-3 text-xs">
+        <!-- Result Card -->
+        <div id="hasil-gaji" class="hidden border-t border-slate-700/60 pt-4 space-y-3 text-xs">
           <div class="flex justify-between items-center">
-            <span id="res-nama" class="font-bold text-sm text-slate-800"></span>
+            <span id="res-nama" class="font-bold text-sm text-slate-100"></span>
             <span id="badge-status" class="px-2.5 py-1 rounded-full font-bold text-[10px]"></span>
           </div>
 
-          <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-lg text-center">
-            <div><span class="block text-slate-400">Hadir</span><b id="res-hadir" class="text-emerald-600 text-sm">0</b></div>
-            <div><span class="block text-slate-400">Izin</span><b id="res-izin" class="text-amber-500 text-sm">0</b></div>
-            <div><span class="block text-slate-400">Alpa</span><b id="res-alpa" class="text-rose-600 text-sm">0</b></div>
+          <div class="grid grid-cols-3 gap-2 bg-slate-900/60 border border-slate-700/40 p-3 rounded-xl text-center">
+            <div><span class="block text-[10px] text-slate-500">Hadir</span><b id="res-hadir" class="text-emerald-400 text-sm">0</b></div>
+            <div><span class="block text-[10px] text-slate-500">Izin</span><b id="res-izin" class="text-amber-400 text-sm">0</b></div>
+            <div><span class="block text-[10px] text-slate-500">Alpa</span><b id="res-alpa" class="text-rose-400 text-sm">0</b></div>
           </div>
 
-          <div class="flex justify-between font-bold text-slate-900 text-sm border-t pt-2">
-            <span>Total Gaji Diterima:</span>
-            <span id="res-total" class="text-emerald-600">Rp0</span>
+          <div class="flex justify-between items-center font-bold text-sm bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-xl">
+            <span class="text-slate-300">Total Diterima:</span>
+            <span id="res-total" class="text-emerald-400 font-extrabold text-base">Rp0</span>
           </div>
 
-          <!-- Tombol Aksi Pembayaran -->
-          <div id="area-aksi-bayar" class="pt-2">
-            <button id="btn-bayar-gaji" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition">
+          <div id="area-aksi-bayar" class="pt-1">
+            <button id="btn-bayar-gaji" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-600/25 transition">
               Tandai LUNAS (Proses Bayar)
             </button>
           </div>
@@ -171,12 +212,21 @@
 
   </main>
 
-  <!-- Navigation Bar -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2 z-50">
+  <!-- Modern Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-800/90 backdrop-blur-lg border-t border-slate-700/50 py-2.5 z-40">
     <div class="max-w-md mx-auto grid grid-cols-3 text-center">
-      <button onclick="switchTab('absensi')" id="nav-absensi" class="text-blue-600 text-xs font-semibold">Absensi</button>
-      <button onclick="switchTab('karyawan')" id="nav-karyawan" class="text-slate-400 text-xs font-semibold">Karyawan</button>
-      <button onclick="switchTab('laporan')" id="nav-laporan" class="text-slate-400 text-xs font-semibold">Gaji</button>
+      <button onclick="switchTab('absensi')" id="nav-absensi" class="flex flex-col items-center gap-1 text-indigo-400">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+        <span class="text-[10px] font-medium">Absensi</span>
+      </button>
+      <button onclick="switchTab('karyawan')" id="nav-karyawan" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+        <span class="text-[10px] font-medium">Karyawan</span>
+      </button>
+      <button onclick="switchTab('laporan')" id="nav-laporan" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        <span class="text-[10px] font-medium">Gaji</span>
+      </button>
     </div>
   </nav>
 
