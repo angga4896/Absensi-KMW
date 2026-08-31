@@ -1,5 +1,5 @@
 // URL BACKEND API TERHUBUNG LANGSUNG DENGAN GOOGLE APPS SCRIPT ANDA
-const API_URL = "https://script.google.com/macros/s/AKfycby4k-n13DP9duRP90eAzWbvd89EYZsk_ecfmNdaJBw7yjiygvqXz46Omp2ynmcPEy8axQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzy5l_OKrU0GeGjtWupZ4Hxd0PPdJh9QPe38WKzG6rNZfMa9UZcswsZeR6NZ60_4UpLBA/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -55,7 +55,6 @@ async function loadKaryawan() {
       
       let options = '<option value="">-- Pilih Karyawan --</option>';
       dataKaryawan.forEach(k => {
-        // Penanganan fallback jika properti bernama 'Nama' atau 'nama'
         const id = k.ID_Karyawan || k.id || "";
         const nama = k.Nama || k.nama || "Tanpa Nama";
         const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
@@ -89,6 +88,7 @@ async function loadKaryawan() {
     showToast("Gagal memuat data karyawan");
   }
 }
+
 // Form Catat Absensi
 document.getElementById("form-absensi").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -230,7 +230,6 @@ document.getElementById("btn-bayar-gaji").addEventListener("click", async () => 
   }
 });
 
-// Register PWA Service Worker
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
