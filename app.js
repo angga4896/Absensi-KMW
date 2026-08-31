@@ -52,30 +52,43 @@ async function loadKaryawan() {
     const json = await res.json();
     if (json.status === "success") {
       dataKaryawan = json.data;
+      
       let options = '<option value="">-- Pilih Karyawan --</option>';
       dataKaryawan.forEach(k => {
-        options += `<option value="${k.ID_Karyawan}">${k.Nama} (${k.Tipe_Gaji})</option>`;
+        // Penanganan fallback jika properti bernama 'Nama' atau 'nama'
+        const id = k.ID_Karyawan || k.id || "";
+        const nama = k.Nama || k.nama || "Tanpa Nama";
+        const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
+        
+        options += `<option value="${id}">${nama} (${tipe})</option>`;
       });
+
       document.getElementById("absen-karyawan").innerHTML = options;
       document.getElementById("laporan-karyawan").innerHTML = options;
       
-      document.getElementById("list-karyawan").innerHTML = dataKaryawan.map(k => `
-        <div class="p-3 bg-slate-50 border border-slate-100 rounded-lg flex justify-between items-center text-xs">
-          <div>
-            <p class="font-bold text-slate-700">${k.Nama}</p>
-            <p class="text-slate-400">${k.Jabatan} &bull; <span class="text-blue-600">${k.Tipe_Gaji}</span></p>
+      document.getElementById("list-karyawan").innerHTML = dataKaryawan.map(k => {
+        const nama = k.Nama || k.nama || "Tanpa Nama";
+        const jabatan = k.Jabatan || k.jabatan || "Staf";
+        const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
+        const rate = Number(k.Rate_Gaji || k.rate_gaji || k.rateGaji || 0);
+
+        return `
+          <div class="p-3 bg-slate-50 border border-slate-100 rounded-lg flex justify-between items-center text-xs">
+            <div>
+              <p class="font-bold text-slate-700">${nama}</p>
+              <p class="text-slate-400">${jabatan} &bull; <span class="text-blue-600">${tipe}</span></p>
+            </div>
+            <div class="font-semibold text-slate-600">
+              Rp ${rate.toLocaleString('id-ID')}
+            </div>
           </div>
-          <div class="font-semibold text-slate-600">
-            Rp ${Number(k.Rate_Gaji).toLocaleString('id-ID')}
-          </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
   } catch (err) {
     showToast("Gagal memuat data karyawan");
   }
 }
-
 // Form Catat Absensi
 document.getElementById("form-absensi").addEventListener("submit", async (e) => {
   e.preventDefault();
