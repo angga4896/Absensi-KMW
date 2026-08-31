@@ -155,12 +155,12 @@
 
     </section>
 
-    <!-- 3. TAB LAPORAN GAJI -->
+    <!-- 3. TAB LAPORAN GAJI (Fleksibel Rentang Tanggal) -->
     <section id="tab-laporan" class="hidden space-y-4">
       <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-4">
         <div class="flex items-center gap-2">
           <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Tracking & Kalkulasi Gaji</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Tracking Gaji Fleksibel</h2>
         </div>
 
         <div class="space-y-3">
@@ -168,12 +168,20 @@
             <label class="block text-[11px] font-medium text-slate-400 mb-1">Pilih Karyawan</label>
             <select id="laporan-karyawan" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition"></select>
           </div>
-          <div>
-            <label class="block text-[11px] font-medium text-slate-400 mb-1">Periode Bulan</label>
-            <input type="month" id="laporan-bulan" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Dari Tanggal</label>
+              <input type="date" id="laporan-tgl-mulai" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Sampai Tanggal</label>
+              <input type="date" id="laporan-tgl-selesai" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+            </div>
           </div>
+
           <button id="btn-hitung-gaji" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/25 transition">
-            Cek Kalkulasi Gaji
+            Hitung Gaji Periode Ini
           </button>
         </div>
 
