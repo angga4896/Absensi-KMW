@@ -1,5 +1,5 @@
 // URL BACKEND API TERHUBUNG LANGSUNG DENGAN GOOGLE APPS SCRIPT ANDA
-const API_URL = "https://script.google.com/macros/s/AKfycbyhshvfDilGASP6RMXYcbSAMoc8XXMdF6a7--Juj3oUQ_B_zWKtJbBVKcrhXtHQm55ESA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycby4k-n13DP9duRP90eAzWbvd89EYZsk_ecfmNdaJBw7yjiygvqXz46Omp2ynmcPEy8axQ/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
