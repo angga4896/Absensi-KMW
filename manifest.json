@@ -1,21 +1,25 @@
 {
-  "name": "Absensi & Gaji Kedae",
-  "short_name": "AbsensiKedae",
+  "name": "Kedae Absensi & Gaji",
+  "short_name": "Kedae Mattowa Absen",
+  "description": "Aplikasi Absensi & Penggajian Kedae Mattowa",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
   "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192x192.png?text=Absensi",
+      "src": "https://cdn-icons-png.flaticon.com/512/1063/1063196.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://via.placeholder.com/512x512.png?text=Absensi",
+      "src": "https://cdn-icons-png.flaticon.com/512/1063/1063196.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
