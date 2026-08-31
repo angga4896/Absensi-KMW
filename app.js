@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyBzXWRWrncEHY607SIl6oIASQzHoBhYnJ_xO2-o-vMgH6O8TAERJFXX32JYrJcpxm9-g/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw9rW6EY71cBZrxm-kjy824KXc3aMEZ4srEiMBDg8N1SPn7dG_59PSVJntx3drjQTni/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
