@@ -1,5 +1,4 @@
-// URL BACKEND API TERBARU DARI GOOGLE APPS SCRIPT ANDA
-const API_URL = "https://script.google.com/macros/s/AKfycbzy5l_OKrU0GeGjtWupZ4Hxd0PPdJh9QPe38WKzG6rNZfMa9UZcswsZeR6NZ60_4UpLBA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyBzXWRWrncEHY607SIl6oIASQzHoBhYnJ_xO2-o-vMgH6O8TAERJFXX32JYrJcpxm9-g/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -21,13 +20,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
   loadKaryawan();
+  loadAbsensiHariIni();
   registerServiceWorker();
 });
 
 function showToast(msg) {
   const toast = document.getElementById("toast");
+  const toastText = document.getElementById("toast-text");
   if (!toast) return;
-  toast.innerText = msg;
+  if (toastText) toastText.innerText = msg;
   toast.classList.remove("hidden");
   setTimeout(() => toast.classList.add("hidden"), 3000);
 }
@@ -37,13 +38,19 @@ function switchTab(tabName) {
     const elTab = document.getElementById(`tab-${t}`);
     const elNav = document.getElementById(`nav-${t}`);
     if (elTab) elTab.classList.add('hidden');
-    if (elNav) elNav.className = 'text-slate-400 text-xs font-semibold';
+    if (elNav) {
+      elNav.classList.remove('text-indigo-400');
+      elNav.classList.add('text-slate-500');
+    }
   });
   
   const activeTab = document.getElementById(`tab-${tabName}`);
   const activeNav = document.getElementById(`nav-${tabName}`);
   if (activeTab) activeTab.classList.remove('hidden');
-  if (activeNav) activeNav.className = 'text-blue-600 text-xs font-semibold';
+  if (activeNav) {
+    activeNav.classList.remove('text-slate-500');
+    activeNav.classList.add('text-indigo-400');
+  }
 }
 
 function updateDefaultRate() {
@@ -61,7 +68,6 @@ function updateDefaultRate() {
   }
 }
 
-// FUNGSI UTAMA PENARIKAN DATA DARI GOOGLE SHEETS
 async function loadKaryawan() {
   try {
     const res = await fetch(`${API_URL}?action=getKaryawan`);
@@ -72,7 +78,6 @@ async function loadKaryawan() {
       
       let options = '<option value="">-- Pilih Karyawan --</option>';
       dataKaryawan.forEach(k => {
-        // Pembacaan fleksibel untuk mengatasi variasi penulisan header kolom
         const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
         const nama = k.Nama || k.nama || "Tanpa Nama";
         const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
@@ -88,7 +93,7 @@ async function loadKaryawan() {
       const listContainer = document.getElementById("list-karyawan");
       if (listContainer) {
         if (dataKaryawan.length === 0) {
-          listContainer.innerHTML = '<p class="text-xs text-slate-400">Belum ada data karyawan di Google Sheets.</p>';
+          listContainer.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada data karyawan.</p>';
         } else {
           listContainer.innerHTML = dataKaryawan.map(k => {
             const nama = k.Nama || k.nama || "Tanpa Nama";
@@ -97,12 +102,12 @@ async function loadKaryawan() {
             const rate = Number(k.Rate_Gaji || k.rate_gaji || k.rateGaji || 0);
 
             return `
-              <div class="p-3 bg-slate-50 border border-slate-100 rounded-lg flex justify-between items-center text-xs">
+              <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs">
                 <div>
-                  <p class="font-bold text-slate-700">${nama}</p>
-                  <p class="text-slate-400">${jabatan} &bull; <span class="text-blue-600">${tipe}</span></p>
+                  <p class="font-bold text-slate-200">${nama}</p>
+                  <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span></p>
                 </div>
-                <div class="font-semibold text-slate-600">
+                <div class="font-bold text-slate-300">
                   Rp ${rate.toLocaleString('id-ID')}
                 </div>
               </div>
@@ -112,12 +117,51 @@ async function loadKaryawan() {
       }
     }
   } catch (err) {
-    console.error("Error loading karyawan:", err);
-    showToast("Gagal menarik data dari Google Sheets");
+    showToast("Gagal menarik data karyawan.");
   }
 }
 
-// Simpan Absensi Harian
+async function loadAbsensiHariIni() {
+  const container = document.getElementById("list-absen-hari-ini");
+  const totalBadge = document.getElementById("total-absen-today");
+  if (!container) return;
+
+  try {
+    const res = await fetch(`${API_URL}?action=getAbsensiHariIni`);
+    const json = await res.json();
+
+    if (json.status === "success") {
+      const data = json.data || [];
+      if (totalBadge) totalBadge.innerText = data.length;
+
+      if (data.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada karyawan yang absen hari ini.</p>';
+        return;
+      }
+
+      container.innerHTML = data.map(item => {
+        let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+        if (item.status === "Izin") badgeColor = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+        if (item.status === "Alpa") badgeColor = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+
+        return `
+          <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs">
+            <div>
+              <p class="font-bold text-slate-200">${item.nama}</p>
+              <p class="text-[10px] text-slate-500">Jam: <span class="font-medium text-slate-400">${item.jam} WIB</span> ${item.catatan && item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
+            </div>
+            <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${badgeColor}">
+              ${item.status}
+            </span>
+          </div>
+        `;
+      }).join("");
+    }
+  } catch (err) {
+    container.innerHTML = '<p class="text-xs text-rose-400 py-2">Gagal memuat absensi hari ini.</p>';
+  }
+}
+
 const formAbsensi = document.getElementById("form-absensi");
 if (formAbsensi) {
   formAbsensi.addEventListener("submit", async (e) => {
@@ -140,6 +184,7 @@ if (formAbsensi) {
       if (json.status === "success") {
         showToast("Absensi Berhasil Tersimpan!");
         formAbsensi.reset();
+        loadAbsensiHariIni();
       } else {
         showToast(json.message || "Gagal menyimpan absensi");
       }
@@ -149,7 +194,6 @@ if (formAbsensi) {
   });
 }
 
-// Tambah Karyawan Baru
 const formTambahKaryawan = document.getElementById("form-tambah-karyawan");
 if (formTambahKaryawan) {
   formTambahKaryawan.addEventListener("submit", async (e) => {
@@ -179,7 +223,7 @@ if (formTambahKaryawan) {
         showToast("Karyawan Berhasil Ditambahkan!");
         formTambahKaryawan.reset();
         updateDefaultRate();
-        loadKaryawan(); // Refresh data instan
+        loadKaryawan();
       } else {
         showToast(json.message);
       }
@@ -189,7 +233,6 @@ if (formTambahKaryawan) {
   });
 }
 
-// Cek & Hitung Gaji
 const btnHitungGaji = document.getElementById("btn-hitung-gaji");
 if (btnHitungGaji) {
   btnHitungGaji.addEventListener("click", async () => {
@@ -197,11 +240,11 @@ if (btnHitungGaji) {
     const bulan = document.getElementById("laporan-bulan").value;
 
     if (!idKaryawan || !bulan) {
-      showToast("Pilih karyawan dan periode bulan terlebih dahulu");
+      showToast("Pilih karyawan dan bulan.");
       return;
     }
 
-    showToast("Menarik rekapan gaji...");
+    showToast("Kalkulasi gaji...");
 
     try {
       const resGaji = await fetch(`${API_URL}?action=hitungkalkulasiGaji&id_karyawan=${idKaryawan}&bulan=${bulan}`);
@@ -224,11 +267,11 @@ if (btnHitungGaji) {
         const areaAksi = document.getElementById("area-aksi-bayar");
 
         if (jsonStatus.dibayar) {
-          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-100 text-emerald-700";
-          badge.innerText = "LUNAS (SUDAH DIBAYAR)";
+          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+          badge.innerText = "LUNAS";
           if (areaAksi) areaAksi.classList.add("hidden");
         } else {
-          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-100 text-amber-700";
+          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30";
           badge.innerText = "BELUM DIBAYAR";
           if (areaAksi) areaAksi.classList.remove("hidden");
         }
@@ -236,12 +279,11 @@ if (btnHitungGaji) {
         document.getElementById("hasil-gaji").classList.remove("hidden");
       }
     } catch (err) {
-      showToast("Gagal mengambil data dari server");
+      showToast("Gagal mengambil data kalkulasi.");
     }
   });
 }
 
-// Bayar Gaji
 const btnBayarGaji = document.getElementById("btn-bayar-gaji");
 if (btnBayarGaji) {
   btnBayarGaji.addEventListener("click", async () => {
