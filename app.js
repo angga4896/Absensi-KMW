@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbw9rW6EY71cBZrxm-kjy824KXc3aMEZ4srEiMBDg8N1SPn7dG_59PSVJntx3drjQTni/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbztU48FUCiYW5kVYZB5QywdzByjlSjJbWKcQFqWk4z0sZ1nYcBfG9KZkuFThY45nKM_MQ/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -10,9 +10,12 @@ document.addEventListener("DOMContentLoaded", () => {
     tglHeader.innerText = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
   }
   
-  const inputBulan = document.getElementById("laporan-bulan");
-  if (inputBulan) {
-    inputBulan.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
+
+  if (document.getElementById("laporan-tgl-mulai")) {
+    document.getElementById("laporan-tgl-mulai").value = firstDay;
+    document.getElementById("laporan-tgl-selesai").value = todayStr;
   }
   
   if (document.getElementById("add-tipe-gaji")) {
@@ -237,25 +240,27 @@ const btnHitungGaji = document.getElementById("btn-hitung-gaji");
 if (btnHitungGaji) {
   btnHitungGaji.addEventListener("click", async () => {
     const idKaryawan = document.getElementById("laporan-karyawan").value;
-    const bulan = document.getElementById("laporan-bulan").value;
+    const tglMulai = document.getElementById("laporan-tgl-mulai").value;
+    const tglSelesai = document.getElementById("laporan-tgl-selesai").value;
 
-    if (!idKaryawan || !bulan) {
-      showToast("Pilih karyawan dan bulan.");
+    if (!idKaryawan || !tglMulai || !tglSelesai) {
+      showToast("Lengkapi karyawan dan rentang tanggal.");
       return;
     }
 
-    showToast("Kalkulasi gaji...");
+    showToast("Memproses kalkulasi...");
 
     try {
-      const resGaji = await fetch(`${API_URL}?action=hitungkalkulasiGaji&id_karyawan=${idKaryawan}&bulan=${bulan}`);
+      const resGaji = await fetch(`${API_URL}?action=hitungkalkulasiGaji&id_karyawan=${idKaryawan}&tgl_mulai=${tglMulai}&tgl_selesai=${tglSelesai}`);
       const jsonGaji = await resGaji.json();
 
-      const resStatus = await fetch(`${API_URL}?action=cekStatusGaji&id_karyawan=${idKaryawan}&bulan=${bulan}`);
+      const periodeTag = `${tglMulai}_sd_${tglSelesai}`;
+      const resStatus = await fetch(`${API_URL}?action=cekStatusGaji&id_karyawan=${idKaryawan}&bulan=${periodeTag}`);
       const jsonStatus = await resStatus.json();
 
       if (jsonGaji.status === "success") {
         const d = jsonGaji.data;
-        kalkulasiAktif = { idKaryawan, bulan, total: d.totalGajiDiterima };
+        kalkulasiAktif = { idKaryawan, bulan: periodeTag, total: d.totalGajiDiterima };
 
         document.getElementById("res-nama").innerText = d.karyawan.nama;
         document.getElementById("res-hadir").innerText = d.rekapKehadiran.hadir;
