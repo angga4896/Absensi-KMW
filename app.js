@@ -153,10 +153,16 @@ async function loadAbsensiHariIni() {
       }
 
       container.innerHTML = data.map(item => {
-        let badgeStyle = "bg-slate-700/50 text-slate-400 border-slate-600/50";
-        if (item.status === "Hadir") badgeStyle = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-        if (item.status === "Izin") badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30";
-        if (item.status === "Alpa") badgeStyle = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+        // PENYETELAN BADGE YANG SINKRON:
+        let statusTeks = "Belum Absen";
+        let badgeStyle = "bg-slate-800 text-slate-400 border-slate-700"; // Default Abu-abu
+
+        if (item.sudah_absen) {
+          statusTeks = item.status;
+          if (item.status === "Hadir") badgeStyle = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+          if (item.status === "Izin") badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+          if (item.status === "Alpa") badgeStyle = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+        }
 
         return `
           <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs">
@@ -168,7 +174,7 @@ async function loadAbsensiHariIni() {
               </p>
             </div>
             <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${badgeStyle}">
-              ${item.status}
+              ${statusTeks}
             </span>
           </div>
         `;
