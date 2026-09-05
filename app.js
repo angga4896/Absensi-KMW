@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxi-ej1aqGCrqzdkm-8F8V9S96Qv6G4zeeRH0tJSWSb60kmXOUO_OR4OCi4PTJCILkc7A/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx974PiVAqXJskAcI0EVUQc4iYWzX8enmB5LhOlWFr3wZASeCiMkSmc6w58KpXX1yqBIQ/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -153,9 +153,8 @@ async function loadAbsensiHariIni() {
       }
 
       container.innerHTML = data.map(item => {
-        // PENYETELAN BADGE YANG SINKRON:
         let statusTeks = "Belum Absen";
-        let badgeStyle = "bg-slate-800 text-slate-400 border-slate-700"; // Default Abu-abu
+        let badgeStyle = "bg-slate-800 text-slate-400 border-slate-700";
 
         if (item.sudah_absen) {
           statusTeks = item.status;
