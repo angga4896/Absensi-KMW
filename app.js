@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbztU48FUCiYW5kVYZB5QywdzByjlSjJbWKcQFqWk4z0sZ1nYcBfG9KZkuFThY45nKM_MQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzy5l_OKrU0GeGjtWupZ4Hxd0PPdJh9QPe38WKzG6rNZfMa9UZcswsZeR6NZ60_4UpLBA/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -99,6 +99,7 @@ async function loadKaryawan() {
           listContainer.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada data karyawan.</p>';
         } else {
           listContainer.innerHTML = dataKaryawan.map(k => {
+            const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
             const nama = k.Nama || k.nama || "Tanpa Nama";
             const jabatan = k.Jabatan || k.jabatan || "Staf";
             const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
@@ -108,11 +109,11 @@ async function loadKaryawan() {
               <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs">
                 <div>
                   <p class="font-bold text-slate-200">${nama}</p>
-                  <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span></p>
+                  <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
                 </div>
-                <div class="font-bold text-slate-300">
-                  Rp ${rate.toLocaleString('id-ID')}
-                </div>
+                <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2.5 py-1.5 rounded-lg text-[10px] transition">
+                  Cek Riwayat
+                </button>
               </div>
             `;
           }).join("");
@@ -124,6 +125,7 @@ async function loadKaryawan() {
   }
 }
 
+// FUNGSI MEMUAT STATUS HARI INI (Termasuk Tanda Belum Absen)
 async function loadAbsensiHariIni() {
   const container = document.getElementById("list-absen-hari-ini");
   const totalBadge = document.getElementById("total-absen-today");
@@ -135,25 +137,30 @@ async function loadAbsensiHariIni() {
 
     if (json.status === "success") {
       const data = json.data || [];
-      if (totalBadge) totalBadge.innerText = data.length;
+      const totalSudahAbsen = data.filter(d => d.sudah_absen).length;
+      if (totalBadge) totalBadge.innerText = `${totalSudahAbsen}/${data.length}`;
 
       if (data.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada karyawan yang absen hari ini.</p>';
+        container.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada karyawan terdaftar.</p>';
         return;
       }
 
       container.innerHTML = data.map(item => {
-        let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-        if (item.status === "Izin") badgeColor = "bg-amber-500/20 text-amber-400 border-amber-500/30";
-        if (item.status === "Alpa") badgeColor = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+        let badgeStyle = "bg-slate-700/50 text-slate-400 border-slate-600/50"; // Default: Belum Absen
+        if (item.status === "Hadir") badgeStyle = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+        if (item.status === "Izin") badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+        if (item.status === "Alpa") badgeStyle = "bg-rose-500/20 text-rose-400 border-rose-500/30";
 
         return `
           <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs">
             <div>
               <p class="font-bold text-slate-200">${item.nama}</p>
-              <p class="text-[10px] text-slate-500">Jam: <span class="font-medium text-slate-400">${item.jam} WIB</span> ${item.catatan && item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
+              <p class="text-[10px] text-slate-500">
+                ${item.sudah_absen ? 'Jam: ' + item.jam + ' WIB' : 'Belum Melakukan Absensi'} 
+                ${item.catatan && item.catatan !== '-' ? '&bull; ' + item.catatan : ''}
+              </p>
             </div>
-            <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${badgeColor}">
+            <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${badgeStyle}">
               ${item.status}
             </span>
           </div>
@@ -163,6 +170,58 @@ async function loadAbsensiHariIni() {
   } catch (err) {
     container.innerHTML = '<p class="text-xs text-rose-400 py-2">Gagal memuat absensi hari ini.</p>';
   }
+}
+
+// BUKA MODAL POP-UP RIWAYAT 1 BULAN TERAKHIR PER KARYAWAN
+async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
+  const modal = document.getElementById("modal-riwayat");
+  const modalNama = document.getElementById("modal-nama-karyawan");
+  const modalContent = document.getElementById("modal-content-riwayat");
+
+  if (!modal || !modalContent) return;
+
+  modalNama.innerText = namaKaryawan;
+  modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik riwayat absensi 30 hari terakhir...</p>';
+  modal.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`${API_URL}?action=getRiwayatKaryawan&id_karyawan=${idKaryawan}`);
+    const json = await res.json();
+
+    if (json.status === "success") {
+      const riwayat = json.data || [];
+
+      if (riwayat.length === 0) {
+        modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Tidak ada catatan absensi dalam 30 hari terakhir.</p>';
+        return;
+      }
+
+      modalContent.innerHTML = riwayat.map(item => {
+        let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+        if (item.status === "Izin") badgeColor = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+        if (item.status === "Alpa") badgeColor = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+
+        return `
+          <div class="p-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl flex justify-between items-center text-xs">
+            <div>
+              <p class="font-bold text-slate-200">${item.tanggal}</p>
+              <p class="text-[10px] text-slate-400">Jam: ${item.jam} WIB ${item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
+            </div>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full border ${badgeColor}">
+              ${item.status}
+            </span>
+          </div>
+        `;
+      }).join("");
+    }
+  } catch (err) {
+    modalContent.innerHTML = '<p class="text-xs text-rose-400 py-6 text-center">Gagal memuat riwayat.</p>';
+  }
+}
+
+function tutupModalRiwayat() {
+  const modal = document.getElementById("modal-riwayat");
+  if (modal) modal.classList.add("hidden");
 }
 
 const formAbsensi = document.getElementById("form-absensi");
@@ -227,6 +286,7 @@ if (formTambahKaryawan) {
         formTambahKaryawan.reset();
         updateDefaultRate();
         loadKaryawan();
+        loadAbsensiHariIni();
       } else {
         showToast(json.message);
       }
@@ -327,21 +387,4 @@ function registerServiceWorker() {
       .then(() => console.log('Service Worker Registered'))
       .catch(err => console.error('SW Failed', err));
   }
-
-  // Tambahkan di bagian paling bawah app.js
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  showToast("Aplikasi siap di-install! Ketuk titik tiga > Install App");
-});
-
-function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-      .then((reg) => console.log('SW terdaftar pada scope:', reg.scope))
-      .catch((err) => console.error('SW Gagal:', err));
-  }
-}
 }
