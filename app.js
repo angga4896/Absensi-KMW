@@ -1,7 +1,16 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbztU48FUCiYW5kVYZB5QywdzByjlSjJbWKcQFqWk4z0sZ1nYcBfG9KZkuFThY45nKM_MQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxomlEeHEsXWReknYnyDDd3XfkGj48dD16Xe5rfqmeCTXi3KI-VDbaj2uORkGGQ1ao2qw/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
+
+// Fungsi pembantu tanggal format YYYY-MM-DD Lokal HP
+function getTodayLocalStr() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const today = new Date();
@@ -10,11 +19,11 @@ document.addEventListener("DOMContentLoaded", () => {
     tglHeader.innerText = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
   }
   
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  const todayStr = today.toISOString().split('T')[0];
+  const firstDayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  const todayStr = getTodayLocalStr();
 
   if (document.getElementById("laporan-tgl-mulai")) {
-    document.getElementById("laporan-tgl-mulai").value = firstDay;
+    document.getElementById("laporan-tgl-mulai").value = firstDayStr;
     document.getElementById("laporan-tgl-selesai").value = todayStr;
   }
   
@@ -125,7 +134,6 @@ async function loadKaryawan() {
   }
 }
 
-// FUNGSI MEMUAT STATUS HARI INI (Termasuk Tanda Belum Absen)
 async function loadAbsensiHariIni() {
   const container = document.getElementById("list-absen-hari-ini");
   const totalBadge = document.getElementById("total-absen-today");
@@ -146,7 +154,7 @@ async function loadAbsensiHariIni() {
       }
 
       container.innerHTML = data.map(item => {
-        let badgeStyle = "bg-slate-700/50 text-slate-400 border-slate-600/50"; // Default: Belum Absen
+        let badgeStyle = "bg-slate-700/50 text-slate-400 border-slate-600/50";
         if (item.status === "Hadir") badgeStyle = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
         if (item.status === "Izin") badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30";
         if (item.status === "Alpa") badgeStyle = "bg-rose-500/20 text-rose-400 border-rose-500/30";
@@ -156,7 +164,7 @@ async function loadAbsensiHariIni() {
             <div>
               <p class="font-bold text-slate-200">${item.nama}</p>
               <p class="text-[10px] text-slate-500">
-                ${item.sudah_absen ? 'Jam: ' + item.jam + ' WIB' : 'Belum Melakukan Absensi'} 
+                ${item.sudah_absen ? 'Jam: ' + item.jam + ' WITA' : 'Belum Melakukan Absensi'} 
                 ${item.catatan && item.catatan !== '-' ? '&bull; ' + item.catatan : ''}
               </p>
             </div>
@@ -172,7 +180,6 @@ async function loadAbsensiHariIni() {
   }
 }
 
-// BUKA MODAL POP-UP RIWAYAT 1 BULAN TERAKHIR PER KARYAWAN
 async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat");
   const modalNama = document.getElementById("modal-nama-karyawan");
@@ -205,7 +212,7 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
           <div class="p-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl flex justify-between items-center text-xs">
             <div>
               <p class="font-bold text-slate-200">${item.tanggal}</p>
-              <p class="text-[10px] text-slate-400">Jam: ${item.jam} WIB ${item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
+              <p class="text-[10px] text-slate-400">Jam: ${item.jam} WITA ${item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
             </div>
             <span class="px-2 py-0.5 text-[10px] font-bold rounded-full border ${badgeColor}">
               ${item.status}
@@ -231,13 +238,15 @@ if (formAbsensi) {
     showToast("Menyimpan absensi...");
     
     const radioStatus = document.querySelector('input[name="status"]:checked');
+    const todayLocalStr = getTodayLocalStr(); // Format YYYY-MM-DD Lokal
+
     try {
       const res = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({
           action: "catatAbsensi",
           id_karyawan: document.getElementById("absen-karyawan").value,
-          tanggal: new Date().toISOString().split('T')[0],
+          tanggal: todayLocalStr,
           status: radioStatus ? radioStatus.value : "Hadir",
           catatan: document.getElementById("absen-catatan").value
         })
