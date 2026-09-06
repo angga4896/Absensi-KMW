@@ -1,5 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbx974PiVAqXJskAcI0EVUQc4iYWzX8enmB5LhOlWFr3wZASeCiMkSmc6w58KpXX1yqBIQ/exec";
 
+let dataKaryawan = [];
 let kalkulasiAktif = null;
 
 function getTodayLocalStr() {
@@ -86,13 +87,12 @@ async function loadKaryawan() {
     if (json.status === "success") {
       dataKaryawan = json.data || [];
       
-      let options = '<option value="">-- Pilih Karyawan --</option>';
+      let options = '<option value="">-- Sentuh Nama Anda Untuk Absen Instant --</option>';
       dataKaryawan.forEach(k => {
         const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
         const nama = k.Nama || k.nama || "Tanpa Nama";
-        const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
         
-        options += `<option value="${id}">${nama} (${tipe})</option>`;
+        options += `<option value="${id}">${nama}</option>`;
       });
 
       const selectAbsen = document.getElementById("absen-karyawan");
@@ -190,7 +190,78 @@ async function loadAbsensiHariIni() {
   }
 }
 
-// MODAL 1: BUKA RIWAYAT ABSENSI
+// PROSES ABSEN INSTAN (OTOMATIS KIRIM SAAT NAMA DIPILIH)
+async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCustom = "-") {
+  if (!idKaryawan) return;
+
+  showToast("Menyimpan Absensi...");
+
+  const todayLocalStr = getTodayLocalStr();
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "catatAbsensi",
+        id_karyawan: idKaryawan,
+        tanggal: todayLocalStr,
+        status: statusCustom,
+        catatan: catatanCustom
+      })
+    });
+    
+    const json = await res.json();
+    if (json.status === "success") {
+      showToast("Absen Berhasil!");
+      const selectAbsen = document.getElementById("absen-karyawan");
+      if (selectAbsen) selectAbsen.value = "";
+      loadAbsensiHariIni();
+    } else {
+      showToast(json.message || "Gagal menyimpan absensi");
+    }
+  } catch (err) {
+    showToast("Gagal koneksi ke server");
+  }
+}
+
+// EVENT LISTENER DROP-DOWN INSTAN
+const selectAbsen = document.getElementById("absen-karyawan");
+if (selectAbsen) {
+  selectAbsen.addEventListener("change", (e) => {
+    const idVal = e.target.value;
+    if (idVal) {
+      const radioStatus = document.querySelector('input[name="status"]:checked');
+      const inputCatatan = document.getElementById("absen-catatan");
+      
+      const st = radioStatus ? radioStatus.value : "Hadir";
+      const ct = inputCatatan && inputCatatan.value ? inputCatatan.value : "-";
+      
+      prosesAbsenInstan(idVal, st, ct);
+    }
+  });
+}
+
+// EVENT LISTENER FORM SUBMIT
+const formAbsensi = document.getElementById("form-absensi");
+if (formAbsensi) {
+  formAbsensi.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const idVal = document.getElementById("absen-karyawan").value;
+    const radioStatus = document.querySelector('input[name="status"]:checked');
+    const inputCatatan = document.getElementById("absen-catatan");
+
+    if (!idVal) {
+      showToast("Pilih nama karyawan terlebih dahulu.");
+      return;
+    }
+
+    const st = radioStatus ? radioStatus.value : "Hadir";
+    const ct = inputCatatan && inputCatatan.value ? inputCatatan.value : "-";
+
+    prosesAbsenInstan(idVal, st, ct);
+  });
+}
+
 async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat");
   const modalNama = document.getElementById("modal-nama-karyawan");
@@ -242,7 +313,6 @@ function tutupModalRiwayat() {
   if (modal) modal.classList.add("hidden");
 }
 
-// MODAL 2: BUKA RIWAYAT PEMBAYARAN GAJI (LUNAS)
 async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat-gaji");
   const modalNama = document.getElementById("modal-gaji-nama-karyawan");
@@ -291,40 +361,6 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
 function tutupModalRiwayatGaji() {
   const modal = document.getElementById("modal-riwayat-gaji");
   if (modal) modal.classList.add("hidden");
-}
-
-const formAbsensi = document.getElementById("form-absensi");
-if (formAbsensi) {
-  formAbsensi.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    showToast("Menyimpan absensi...");
-    
-    const radioStatus = document.querySelector('input[name="status"]:checked');
-    const todayLocalStr = getTodayLocalStr();
-
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "catatAbsensi",
-          id_karyawan: document.getElementById("absen-karyawan").value,
-          tanggal: todayLocalStr,
-          status: radioStatus ? radioStatus.value : "Hadir",
-          catatan: document.getElementById("absen-catatan").value
-        })
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast("Absensi Berhasil Tersimpan!");
-        formAbsensi.reset();
-        loadAbsensiHariIni();
-      } else {
-        showToast(json.message || "Gagal menyimpan absensi");
-      }
-    } catch (err) {
-      showToast("Gagal koneksi ke server");
-    }
-  });
 }
 
 const formTambahKaryawan = document.getElementById("form-tambah-karyawan");
