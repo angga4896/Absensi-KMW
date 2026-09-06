@@ -1,6 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbx974PiVAqXJskAcI0EVUQc4iYWzX8enmB5LhOlWFr3wZASeCiMkSmc6w58KpXX1yqBIQ/exec";
 
-let dataKaryawan = [];
 let kalkulasiAktif = null;
 
 function getTodayLocalStr() {
@@ -119,9 +118,14 @@ async function loadKaryawan() {
                   <p class="font-bold text-slate-200">${nama}</p>
                   <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
                 </div>
-                <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2.5 py-1.5 rounded-lg text-[10px] transition">
-                  Cek Riwayat
-                </button>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+                    Absen
+                  </button>
+                  <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+                    Gaji
+                  </button>
+                </div>
               </div>
             `;
           }).join("");
@@ -186,6 +190,7 @@ async function loadAbsensiHariIni() {
   }
 }
 
+// MODAL 1: BUKA RIWAYAT ABSENSI
 async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat");
   const modalNama = document.getElementById("modal-nama-karyawan");
@@ -234,6 +239,57 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
 
 function tutupModalRiwayat() {
   const modal = document.getElementById("modal-riwayat");
+  if (modal) modal.classList.add("hidden");
+}
+
+// MODAL 2: BUKA RIWAYAT PEMBAYARAN GAJI (LUNAS)
+async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
+  const modal = document.getElementById("modal-riwayat-gaji");
+  const modalNama = document.getElementById("modal-gaji-nama-karyawan");
+  const modalContent = document.getElementById("modal-content-riwayat-gaji");
+
+  if (!modal || !modalContent) return;
+
+  modalNama.innerText = namaKaryawan;
+  modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik data pembayaran gaji...</p>';
+  modal.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`${API_URL}?action=getRiwayatGajiKaryawan&id_karyawan=${idKaryawan}`);
+    const json = await res.json();
+
+    if (json.status === "success") {
+      const riwayat = json.data || [];
+
+      if (riwayat.length === 0) {
+        modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Belum ada riwayat pencairan gaji untuk karyawan ini.</p>';
+        return;
+      }
+
+      modalContent.innerHTML = riwayat.map(item => {
+        return `
+          <div class="p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl space-y-1 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-emerald-400 text-sm">Rp ${Number(item.totalGaji).toLocaleString('id-ID')}</span>
+              <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                ${item.status}
+              </span>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-700/40 pt-1.5 mt-1">
+              <span>Periode: <b class="text-slate-200">${item.periode.replace('_sd_', ' s/d ')}</b></span>
+              <span>Dibayar: ${item.tanggalBayar}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  } catch (err) {
+    modalContent.innerHTML = '<p class="text-xs text-rose-400 py-6 text-center">Gagal memuat riwayat gaji.</p>';
+  }
+}
+
+function tutupModalRiwayatGaji() {
+  const modal = document.getElementById("modal-riwayat-gaji");
   if (modal) modal.classList.add("hidden");
 }
 
