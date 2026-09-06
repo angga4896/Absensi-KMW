@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbx974PiVAqXJskAcI0EVUQc4iYWzX8enmB5LhOlWFr3wZASeCiMkSmc6w58KpXX1yqBIQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz0HBQWH--BllmNZXGiY8iTGUEmnBvVju-MRN_8IXvJxqvs5u9dLgP7S8mEXTsU588/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -163,6 +163,7 @@ async function loadAbsensiHariIni() {
         if (item.sudah_absen) {
           statusTeks = item.status;
           if (item.status === "Hadir") badgeStyle = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+          if (item.status === "Setengah Hari") badgeStyle = "bg-sky-500/20 text-sky-400 border-sky-500/30";
           if (item.status === "Izin") badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30";
           if (item.status === "Alpa") badgeStyle = "bg-rose-500/20 text-rose-400 border-rose-500/30";
         }
@@ -190,12 +191,10 @@ async function loadAbsensiHariIni() {
   }
 }
 
-// PROSES ABSEN INSTAN (OTOMATIS KIRIM SAAT NAMA DIPILIH)
 async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCustom = "-") {
   if (!idKaryawan) return;
 
   showToast("Menyimpan Absensi...");
-
   const todayLocalStr = getTodayLocalStr();
 
   try {
@@ -212,7 +211,7 @@ async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCust
     
     const json = await res.json();
     if (json.status === "success") {
-      showToast("Absen Berhasil!");
+      showToast(json.message || "Absen Berhasil!");
       const selectAbsen = document.getElementById("absen-karyawan");
       if (selectAbsen) selectAbsen.value = "";
       loadAbsensiHariIni();
@@ -224,7 +223,6 @@ async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCust
   }
 }
 
-// EVENT LISTENER DROP-DOWN INSTAN
 const selectAbsen = document.getElementById("absen-karyawan");
 if (selectAbsen) {
   selectAbsen.addEventListener("change", (e) => {
@@ -241,7 +239,6 @@ if (selectAbsen) {
   });
 }
 
-// EVENT LISTENER FORM SUBMIT
 const formAbsensi = document.getElementById("form-absensi");
 if (formAbsensi) {
   formAbsensi.addEventListener("submit", (e) => {
@@ -287,6 +284,7 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
 
       modalContent.innerHTML = riwayat.map(item => {
         let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+        if (item.status === "Setengah Hari") badgeColor = "bg-sky-500/20 text-sky-400 border-sky-500/30";
         if (item.status === "Izin") badgeColor = "bg-amber-500/20 text-amber-400 border-amber-500/30";
         if (item.status === "Alpa") badgeColor = "bg-rose-500/20 text-rose-400 border-rose-500/30";
 
@@ -431,6 +429,7 @@ if (btnHitungGaji) {
 
         document.getElementById("res-nama").innerText = d.karyawan.nama;
         document.getElementById("res-hadir").innerText = d.rekapKehadiran.hadir;
+        document.getElementById("res-setengah").innerText = d.rekapKehadiran.setengahHari || 0;
         document.getElementById("res-izin").innerText = d.rekapKehadiran.izin;
         document.getElementById("res-alpa").innerText = d.rekapKehadiran.alpa;
         document.getElementById("res-total").innerText = `Rp ${Number(d.totalGajiDiterima).toLocaleString('id-ID')}`;
