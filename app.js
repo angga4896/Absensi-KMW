@@ -1,4 +1,5 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbz0HBQWH--BllmNZXGiY8iTGUEmnBvVju-MRN_8IXvJxqvs5u9dLgP7S8mEXTsU588/exec";
+// URL BACKEND API TERSINKRONISASI
+const API_URL = "https://script.google.com/macros/s/AKfycbwfmF2Axg-_ZxBnaMsNNSV7eDBgVndG3jPyYH8ZsP3CJbpQRo-hhlxH5NUNfXioSjI0zw/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -87,18 +88,26 @@ async function loadKaryawan() {
     if (json.status === "success") {
       dataKaryawan = json.data || [];
       
-      let options = '<option value="">-- Sentuh Nama Anda Untuk Absen Instant --</option>';
+      let optionsAbsen = '<option value="">-- Sentuh Nama Anda Untuk Absen Instant --</option>';
+      let optionsLaporan = '<option value="">-- Pilih Karyawan --</option>';
+
       dataKaryawan.forEach(k => {
         const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
         const nama = k.Nama || k.nama || "Tanpa Nama";
-        
-        options += `<option value="${id}">${nama}</option>`;
+        const stAktif = k.Status_Aktif || "Aktif";
+
+        // Hanya masukkan karyawan aktif ke Form Absensi
+        if (stAktif.toLowerCase() === "aktif") {
+          optionsAbsen += `<option value="${id}">${nama}</option>`;
+        }
+        // Laporan Gaji tetap bisa diakses semua karyawan (termasuk yang nonaktif)
+        optionsLaporan += `<option value="${id}">${nama} ${stAktif.toLowerCase() !== "aktif" ? "(Nonaktif)" : ""}</option>`;
       });
 
       const selectAbsen = document.getElementById("absen-karyawan");
       const selectLaporan = document.getElementById("laporan-karyawan");
-      if (selectAbsen) selectAbsen.innerHTML = options;
-      if (selectLaporan) selectLaporan.innerHTML = options;
+      if (selectAbsen) selectAbsen.innerHTML = optionsAbsen;
+      if (selectLaporan) selectLaporan.innerHTML = optionsLaporan;
       
       const listContainer = document.getElementById("list-karyawan");
       if (listContainer) {
@@ -111,19 +120,24 @@ async function loadKaryawan() {
             const jabatan = k.Jabatan || k.jabatan || "Staf";
             const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
             const rate = Number(k.Rate_Gaji || k.rate_gaji || k.rateGaji || 0);
+            const stAktif = k.Status_Aktif || "Aktif";
+            const isAktif = stAktif.toLowerCase() === "aktif";
 
             return `
-              <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs">
+              <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs ${!isAktif ? 'opacity-60 grayscale-[30%]' : ''}">
                 <div>
-                  <p class="font-bold text-slate-200">${nama}</p>
+                  <div class="flex items-center gap-1.5">
+                    <p class="font-bold text-slate-200">${nama}</p>
+                    ${!isAktif ? '<span class="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.2 rounded">Nonaktif</span>' : ''}
+                  </div>
                   <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
                 </div>
                 <div class="flex items-center gap-1.5">
+                  <button onclick="toggleStatusKaryawan('${id}', '${isAktif ? 'Nonaktif' : 'Aktif'}')" class="${isAktif ? 'bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border-rose-500/30' : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border-emerald-500/30'} border font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+                    ${isAktif ? 'Nonaktifkan' : 'Aktifkan'}
+                  </button>
                   <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
                     Absen
-                  </button>
-                  <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
-                    Gaji
                   </button>
                 </div>
               </div>
@@ -134,6 +148,33 @@ async function loadKaryawan() {
     }
   } catch (err) {
     showToast("Gagal menarik data karyawan.");
+  }
+}
+
+async function toggleStatusKaryawan(idKaryawan, statusBaru) {
+  if (!confirm(`Ubah status karyawan ini menjadi ${statusBaru}?`)) return;
+
+  showToast("Memproses status...");
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "toggleStatusKaryawan",
+        id_karyawan: idKaryawan,
+        status_aktif: statusBaru
+      })
+    });
+    
+    const json = await res.json();
+    if (json.status === "success") {
+      showToast(json.message);
+      loadKaryawan();
+      loadAbsensiHariIni();
+    } else {
+      showToast(json.message || "Gagal memperbarui status");
+    }
+  } catch (err) {
+    showToast("Gagal terhubung ke server.");
   }
 }
 
@@ -152,7 +193,7 @@ async function loadAbsensiHariIni() {
       if (totalBadge) totalBadge.innerText = `${totalSudahAbsen}/${data.length}`;
 
       if (data.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada karyawan terdaftar.</p>';
+        container.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada karyawan aktif.</p>';
         return;
       }
 
