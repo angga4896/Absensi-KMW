@@ -1,5 +1,5 @@
 // URL BACKEND API TERSINKRONISASI
-const API_URL = "https://script.google.com/macros/s/AKfycbzxGT8sRRUtJgv8HIwzWmmRodGoLLguaUQxoI3pzdquST3PvXNHdoOgcw682UrVVpEcJw/exec";
+const API_URL = "https://"https://script.google.com/macros/s/AKfycbzxGT8sRRUtJgv8HIwzWmmRodGoLLguaUQxoI3pzdquST3PvXNHdoOgcw682UrVVpEcJw/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -96,11 +96,9 @@ async function loadKaryawan() {
         const nama = k.Nama || k.nama || "Tanpa Nama";
         const stAktif = k.Status_Aktif || "Aktif";
 
-        // Hanya masukkan karyawan aktif ke Form Absensi
         if (stAktif.toLowerCase() === "aktif") {
           optionsAbsen += `<option value="${id}">${nama}</option>`;
         }
-        // Laporan Gaji tetap bisa diakses semua karyawan (termasuk yang nonaktif)
         optionsLaporan += `<option value="${id}">${nama} ${stAktif.toLowerCase() !== "aktif" ? "(Nonaktif)" : ""}</option>`;
       });
 
@@ -138,6 +136,9 @@ async function loadKaryawan() {
                   </button>
                   <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
                     Absen
+                  </button>
+                  <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+                    Gaji
                   </button>
                 </div>
               </div>
@@ -300,6 +301,58 @@ if (formAbsensi) {
   });
 }
 
+async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
+  const modal = document.getElementById("modal-riwayat");
+  const modalNama = document.getElementById("modal-nama-karyawan");
+  const modalContent = document.getElementById("modal-content-riwayat");
+
+  if (!modal || !modalContent) return;
+
+  modalNama.innerText = namaKaryawan;
+  modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik riwayat absensi 30 hari terakhir...</p>';
+  modal.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`${API_URL}?action=getRiwayatKaryawan&id_karyawan=${idKaryawan}`);
+    const json = await res.json();
+
+    if (json.status === "success") {
+      const riwayat = json.data || [];
+
+      if (riwayat.length === 0) {
+        modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Tidak ada catatan absensi dalam 30 hari terakhir.</p>';
+        return;
+      }
+
+      modalContent.innerHTML = riwayat.map(item => {
+        let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+        if (item.status === "Setengah Hari") badgeColor = "bg-sky-500/20 text-sky-400 border-sky-500/30";
+        if (item.status === "Izin") badgeColor = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+        if (item.status === "Alpa") badgeColor = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+
+        return `
+          <div class="p-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl flex justify-between items-center text-xs">
+            <div>
+              <p class="font-bold text-slate-200">${item.tanggal}</p>
+              <p class="text-[10px] text-slate-400">Jam: ${item.jam} WITA ${item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
+            </div>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full border ${badgeColor}">
+              ${item.status}
+            </span>
+          </div>
+        `;
+      }).join("");
+    }
+  } catch (err) {
+    modalContent.innerHTML = '<p class="text-xs text-rose-400 py-6 text-center">Gagal memuat riwayat.</p>';
+  }
+}
+
+function tutupModalRiwayat() {
+  const modal = document.getElementById("modal-riwayat");
+  if (modal) modal.classList.add("hidden");
+}
+
 async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat-gaji");
   const modalNama = document.getElementById("modal-gaji-nama-karyawan");
@@ -337,56 +390,6 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
             </div>
             <div class="flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-700/40 pt-1.5 mt-1">
               <span>Periode: <b class="text-slate-200">${periodeTxt}</b></span>
-              <span>Dibayar: ${item.tanggalBayar}</span>
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-  } catch (err) {
-    modalContent.innerHTML = '<p class="text-xs text-rose-400 py-6 text-center">Gagal memuat riwayat gaji.</p>';
-  }
-}
-
-function tutupModalRiwayat() {
-  const modal = document.getElementById("modal-riwayat");
-  if (modal) modal.classList.add("hidden");
-}
-
-async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
-  const modal = document.getElementById("modal-riwayat-gaji");
-  const modalNama = document.getElementById("modal-gaji-nama-karyawan");
-  const modalContent = document.getElementById("modal-content-riwayat-gaji");
-
-  if (!modal || !modalContent) return;
-
-  modalNama.innerText = namaKaryawan;
-  modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik data pembayaran gaji...</p>';
-  modal.classList.remove("hidden");
-
-  try {
-    const res = await fetch(`${API_URL}?action=getRiwayatGajiKaryawan&id_karyawan=${idKaryawan}`);
-    const json = await res.json();
-
-    if (json.status === "success") {
-      const riwayat = json.data || [];
-
-      if (riwayat.length === 0) {
-        modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Belum ada riwayat pencairan gaji untuk karyawan ini.</p>';
-        return;
-      }
-
-      modalContent.innerHTML = riwayat.map(item => {
-        return `
-          <div class="p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl space-y-1 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="font-bold text-emerald-400 text-sm">Rp ${Number(item.totalGaji).toLocaleString('id-ID')}</span>
-              <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                ${item.status}
-              </span>
-            </div>
-            <div class="flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-700/40 pt-1.5 mt-1">
-              <span>Periode: <b class="text-slate-200">${item.periode.replace('_sd_', ' s/d ')}</b></span>
               <span>Dibayar: ${item.tanggalBayar}</span>
             </div>
           </div>
