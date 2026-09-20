@@ -31,7 +31,28 @@ function updateRealtimeClock() {
 
 document.addEventListener("DOMContentLoaded", () => {
   updateRealtimeClock();
-  setInterval(updateRealtimeClock, 1000); // Berdetik setiap detik
+  setInterval(updateRealtimeClock, 1000);
+  loadKaryawan();
+  loadAbsensiHariIni();
+
+  // --- LOGIKA BUKA URL LANGSUNG SCAN ---
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // Jika URL: https://absensi-kmw.vercel.app/?action=scan
+  if (urlParams.get('action') === 'scan') {
+    setTimeout(() => {
+      toggleCameraScanner(); // Otomatis aktifkan kamera scan
+    }, 1000);
+  }
+
+  // Jika URL ID Card Unik: https://absensi-kmw.vercel.app/?absen=KRY-001
+  const autoAbsenId = urlParams.get('absen');
+  if (autoAbsenId) {
+    setTimeout(() => {
+      prosesAbsenInstan(autoAbsenId, "Hadir", "Scan QR URL Langsung");
+    }, 1200);
+  }
+});
 
   const today = new Date();
   const firstDayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
