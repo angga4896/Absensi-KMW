@@ -1,6 +1,8 @@
 // URL BACKEND API TERSINKRONISASI
 const API_URL = "https://script.google.com/macros/s/AKfycbzLK0xQcu9BZELQDn2NK1WlGsCKlUvlI4Bhn9m0mEBEJV3XqhEI4LhWWxBUrnRzkYBnIg/exec";
 
+let html5QrCode = null;
+let isScanning = false;
 let dataKaryawan = [];
 let kalkulasiAktif = null;
 
@@ -29,31 +31,12 @@ function updateRealtimeClock() {
   if (headerTimeEl) headerTimeEl.innerText = `${jamStr} WITA`;
 }
 
+// INISIALISASI HALAMAN
 document.addEventListener("DOMContentLoaded", () => {
   updateRealtimeClock();
   setInterval(updateRealtimeClock, 1000);
-  loadKaryawan();
-  loadAbsensiHariIni();
 
-  // --- LOGIKA BUKA URL LANGSUNG SCAN ---
-  const urlParams = new URLSearchParams(window.location.search);
-  
-  // Jika URL: https://absensi-kmw.vercel.app/?action=scan
-  if (urlParams.get('action') === 'scan') {
-    setTimeout(() => {
-      toggleCameraScanner(); // Otomatis aktifkan kamera scan
-    }, 1000);
-  }
-
-  // Jika URL ID Card Unik: https://absensi-kmw.vercel.app/?absen=KRY-001
-  const autoAbsenId = urlParams.get('absen');
-  if (autoAbsenId) {
-    setTimeout(() => {
-      prosesAbsenInstan(autoAbsenId, "Hadir", "Scan QR URL Langsung");
-    }, 1200);
-  }
-});
-
+  // Set Rentang Tanggal Laporan Gaji Default (Awal Bulan - Hari Ini)
   const today = new Date();
   const firstDayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
   const todayStr = getTodayLocalStr();
@@ -66,9 +49,27 @@ document.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("add-tipe-gaji")) {
     updateDefaultRate();
   }
-  
+
+  // Muat Data dari Google Apps Script (Hanya Dipanggil Sekali)
   loadKaryawan();
   loadAbsensiHariIni();
+
+  // Logika URL Parameters (Scan Kamera / Auto-Absen)
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  if (urlParams.get('action') === 'scan') {
+    setTimeout(() => {
+      if (typeof toggleCameraScanner === 'function') toggleCameraScanner();
+    }, 1000);
+  }
+
+  const autoAbsenId = urlParams.get('absen');
+  if (autoAbsenId) {
+    setTimeout(() => {
+      prosesAbsenInstan(autoAbsenId, "Hadir", "Scan QR URL Langsung");
+    }, 1200);
+  }
+
   registerServiceWorker();
 });
 
@@ -101,7 +102,77 @@ function switchTab(tabName) {
   }
 }
 
-// Beralih Antara Sub-Tab Karyawan Aktif vs Nonaktif
+// TOGGLE SCANNER KAMERA BARCODE / QR CODE
+function toggleCameraScanner() {
+  const container = document.getElementById("scanner-container");
+  const btn = document.getElementById("btn-toggle-cam");
+
+  if (!container || !btn) return;
+
+  if (!isScanning) {
+    container.classList.remove("hidden");
+    btn.innerText = "Tutup Kamera";
+    btn.className = "bg-rose-600 hover:bg-rose-500 text-white font-semibold text-[10px] px-3 py-1.5 rounded-lg transition shadow";
+    
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      onScanSuccess,
+      onScanError
+    ).catch(() => {
+      showToast("Gagal membuka kamera HP.");
+    });
+    isScanning = true;
+  } else {
+    stopScanner();
+  }
+}
+
+function stopScanner() {
+  if (html5QrCode && isScanning) {
+    html5QrCode.stop().then(() => {
+      const container = document.getElementById("scanner-container");
+      const btn = document.getElementById("btn-toggle-cam");
+      if (container) container.classList.add("hidden");
+      if (btn) {
+        btn.innerText = "Buka Kamera Scan";
+        btn.className = "bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[10px] px-3 py-1.5 rounded-lg transition shadow";
+      }
+      isScanning = false;
+    });
+  }
+}
+
+function onScanSuccess(decodedText) {
+  const scannedVal = String(decodedText).trim().toLowerCase();
+  
+  let foundKaryawan = dataKaryawan.find(k => {
+    let id = String(k.ID_Karyawan || k.id || "").trim().toLowerCase();
+    let nama = String(k.Nama || k.nama || "").trim().toLowerCase();
+    return id === scannedVal || nama === scannedVal;
+  });
+
+  if (foundKaryawan) {
+    const idRes = foundKaryawan.ID_Karyawan || foundKaryawan.id;
+    const selectAbsen = document.getElementById("absen-karyawan");
+    if (selectAbsen) selectAbsen.value = idRes;
+    
+    showToast(`Terdeteksi: ${foundKaryawan.Nama}`);
+    
+    let audio = new Audio("https://media.geeksforgeeks.org/wp-content/uploads/20190529122828/bs.mp3");
+    audio.play().catch(() => {});
+
+    prosesAbsenInstan(idRes, "Hadir", "Scan Barcode");
+    stopScanner();
+  } else {
+    showToast(`Barcode (${decodedText}) tidak terdaftar!`);
+  }
+}
+
+function onScanError(errorMessage) {}
+
+// BERALIH ANTARA SUB-TAB KARYAWAN AKTIF VS NONAKTIF
 function switchKaryawanSubTab(subTab) {
   const btnAktif = document.getElementById("subtab-btn-aktif");
   const btnNonaktif = document.getElementById("subtab-btn-nonaktif");
@@ -109,13 +180,13 @@ function switchKaryawanSubTab(subTab) {
   const listNonaktif = document.getElementById("list-karyawan-nonaktif");
 
   if (subTab === 'aktif') {
-    btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow";
-    btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
+    if (btnAktif) btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow";
+    if (btnNonaktif) btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
     if (listAktif) listAktif.classList.remove("hidden");
     if (listNonaktif) listNonaktif.classList.add("hidden");
   } else {
-    btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-rose-600 text-white transition shadow";
-    btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
+    if (btnNonaktif) btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-rose-600 text-white transition shadow";
+    if (btnAktif) btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
     if (listNonaktif) listNonaktif.classList.remove("hidden");
     if (listAktif) listAktif.classList.add("hidden");
   }
@@ -144,7 +215,7 @@ async function loadKaryawan() {
     if (json.status === "success") {
       dataKaryawan = json.data || [];
       
-      let optionsAbsen = '<option value="">-- Sentuh Nama Anda Untuk Absen Instant --</option>';
+      let optionsAbsen = '<option value="">-- Pilih Manual atau Scan Barcode --</option>';
       let optionsLaporan = '<option value="">-- Pilih Karyawan --</option>';
 
       let karyawanAktifList = [];
@@ -157,7 +228,7 @@ async function loadKaryawan() {
         const isAktif = stAktif.toLowerCase() === "aktif";
 
         if (isAktif) {
-          optionsAbsen += `<option value="${id}">${nama}</option>`;
+          optionsAbsen += `<option value="${id}">${nama} (${id})</option>`;
           karyawanAktifList.push(k);
         } else {
           karyawanNonaktifList.push(k);
@@ -171,13 +242,11 @@ async function loadKaryawan() {
       if (selectAbsen) selectAbsen.innerHTML = optionsAbsen;
       if (selectLaporan) selectLaporan.innerHTML = optionsLaporan;
 
-      // Update Total Counter
       const countAktifEl = document.getElementById("count-karyawan-aktif");
       const countNonaktifEl = document.getElementById("count-karyawan-nonaktif");
       if (countAktifEl) countAktifEl.innerText = karyawanAktifList.length;
       if (countNonaktifEl) countNonaktifEl.innerText = karyawanNonaktifList.length;
 
-      // Render Karyawan Aktif
       const containerAktif = document.getElementById("list-karyawan-aktif");
       if (containerAktif) {
         if (karyawanAktifList.length === 0) {
@@ -187,7 +256,6 @@ async function loadKaryawan() {
         }
       }
 
-      // Render Karyawan Nonaktif
       const containerNonaktif = document.getElementById("list-karyawan-nonaktif");
       if (containerNonaktif) {
         if (karyawanNonaktifList.length === 0) {
@@ -275,7 +343,7 @@ async function loadAbsensiHariIni() {
       if (totalBadge) totalBadge.innerText = `${totalSudahAbsen}/${data.length}`;
 
       if (data.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada karyawan aktif.</p>';
+        container.innerHTML = '<p class="text-xs text-slate-500 py-2 text-center">Belum ada karyawan aktif.</p>';
         return;
       }
 
@@ -307,17 +375,17 @@ async function loadAbsensiHariIni() {
         `;
       }).join("");
     } else {
-      container.innerHTML = `<p class="text-xs text-rose-400 py-2">Gagal: ${json.message}</p>`;
+      container.innerHTML = `<p class="text-xs text-rose-400 py-2 text-center">Gagal: ${json.message}</p>`;
     }
   } catch (err) {
-    container.innerHTML = '<p class="text-xs text-rose-400 py-2">Gagal memuat absensi hari ini.</p>';
+    container.innerHTML = '<p class="text-xs text-rose-400 py-2 text-center">Gagal memuat absensi hari ini.</p>';
   }
 }
 
 async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCustom = "-") {
   if (!idKaryawan) return;
 
-  showToast("Menyimpan Absensi...");
+  showToast("Menyimpan Kehadiran...");
   const todayLocalStr = getTodayLocalStr();
 
   try {
