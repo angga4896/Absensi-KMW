@@ -1,5 +1,5 @@
 // URL BACKEND API TERSINKRONISASI
-const API_URL = "https://"https://script.google.com/macros/s/AKfycbzxGT8sRRUtJgv8HIwzWmmRodGoLLguaUQxoI3pzdquST3PvXNHdoOgcw682UrVVpEcJw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzxGT8sRRUtJgv8HIwzWmmRodGoLLguaUQxoI3pzdquST3PvXNHdoOgcw682UrVVpEcJw/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
