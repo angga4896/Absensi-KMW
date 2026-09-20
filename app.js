@@ -1,5 +1,5 @@
 // URL BACKEND API TERSINKRONISASI
-const API_URL = "https://script.google.com/macros/s/AKfycbzxGT8sRRUtJgv8HIwzWmmRodGoLLguaUQxoI3pzdquST3PvXNHdoOgcw682UrVVpEcJw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzLK0xQcu9BZELQDn2NK1WlGsCKlUvlI4Bhn9m0mEBEJV3XqhEI4LhWWxBUrnRzkYBnIg/exec";
 
 let dataKaryawan = [];
 let kalkulasiAktif = null;
@@ -12,13 +12,28 @@ function getTodayLocalStr() {
   return `${year}-${month}-${day}`;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const today = new Date();
-  const tglHeader = document.getElementById("current-date");
-  if (tglHeader) {
-    tglHeader.innerText = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-  }
+// Update Header Real-time Jam & Tanggal WITA (Mataram, NTB)
+function updateRealtimeClock() {
+  const now = new Date();
   
+  const optionsTgl = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' };
+  const optionsJam = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Makassar' };
+
+  const tglStr = now.toLocaleDateString('id-ID', optionsTgl);
+  const jamStr = now.toLocaleTimeString('id-ID', optionsJam);
+
+  const headerDateEl = document.getElementById("header-date");
+  const headerTimeEl = document.getElementById("header-time");
+
+  if (headerDateEl) headerDateEl.innerText = tglStr;
+  if (headerTimeEl) headerTimeEl.innerText = `${jamStr} WITA`;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  updateRealtimeClock();
+  setInterval(updateRealtimeClock, 1000); // Berdetik setiap detik
+
+  const today = new Date();
   const firstDayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
   const todayStr = getTodayLocalStr();
 
@@ -65,6 +80,26 @@ function switchTab(tabName) {
   }
 }
 
+// Beralih Antara Sub-Tab Karyawan Aktif vs Nonaktif
+function switchKaryawanSubTab(subTab) {
+  const btnAktif = document.getElementById("subtab-btn-aktif");
+  const btnNonaktif = document.getElementById("subtab-btn-nonaktif");
+  const listAktif = document.getElementById("list-karyawan-aktif");
+  const listNonaktif = document.getElementById("list-karyawan-nonaktif");
+
+  if (subTab === 'aktif') {
+    btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow";
+    btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
+    if (listAktif) listAktif.classList.remove("hidden");
+    if (listNonaktif) listNonaktif.classList.add("hidden");
+  } else {
+    btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-rose-600 text-white transition shadow";
+    btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
+    if (listNonaktif) listNonaktif.classList.remove("hidden");
+    if (listAktif) listAktif.classList.add("hidden");
+  }
+}
+
 function updateDefaultRate() {
   const tipeEl = document.getElementById("add-tipe-gaji");
   const inputRate = document.getElementById("add-rate-gaji");
@@ -91,65 +126,90 @@ async function loadKaryawan() {
       let optionsAbsen = '<option value="">-- Sentuh Nama Anda Untuk Absen Instant --</option>';
       let optionsLaporan = '<option value="">-- Pilih Karyawan --</option>';
 
+      let karyawanAktifList = [];
+      let karyawanNonaktifList = [];
+
       dataKaryawan.forEach(k => {
         const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
         const nama = k.Nama || k.nama || "Tanpa Nama";
         const stAktif = k.Status_Aktif || "Aktif";
+        const isAktif = stAktif.toLowerCase() === "aktif";
 
-        if (stAktif.toLowerCase() === "aktif") {
+        if (isAktif) {
           optionsAbsen += `<option value="${id}">${nama}</option>`;
+          karyawanAktifList.push(k);
+        } else {
+          karyawanNonaktifList.push(k);
         }
-        optionsLaporan += `<option value="${id}">${nama} ${stAktif.toLowerCase() !== "aktif" ? "(Nonaktif)" : ""}</option>`;
+
+        optionsLaporan += `<option value="${id}">${nama} ${!isAktif ? "(Nonaktif)" : ""}</option>`;
       });
 
       const selectAbsen = document.getElementById("absen-karyawan");
       const selectLaporan = document.getElementById("laporan-karyawan");
       if (selectAbsen) selectAbsen.innerHTML = optionsAbsen;
       if (selectLaporan) selectLaporan.innerHTML = optionsLaporan;
-      
-      const listContainer = document.getElementById("list-karyawan");
-      if (listContainer) {
-        if (dataKaryawan.length === 0) {
-          listContainer.innerHTML = '<p class="text-xs text-slate-500 py-2">Belum ada data karyawan.</p>';
-        } else {
-          listContainer.innerHTML = dataKaryawan.map(k => {
-            const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
-            const nama = k.Nama || k.nama || "Tanpa Nama";
-            const jabatan = k.Jabatan || k.jabatan || "Staf";
-            const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
-            const rate = Number(k.Rate_Gaji || k.rate_gaji || k.rateGaji || 0);
-            const stAktif = k.Status_Aktif || "Aktif";
-            const isAktif = stAktif.toLowerCase() === "aktif";
 
-            return `
-              <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs ${!isAktif ? 'opacity-60 grayscale-[30%]' : ''}">
-                <div>
-                  <div class="flex items-center gap-1.5">
-                    <p class="font-bold text-slate-200">${nama}</p>
-                    ${!isAktif ? '<span class="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.2 rounded">Nonaktif</span>' : ''}
-                  </div>
-                  <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
-                </div>
-                <div class="flex items-center gap-1.5">
-                  <button onclick="toggleStatusKaryawan('${id}', '${isAktif ? 'Nonaktif' : 'Aktif'}')" class="${isAktif ? 'bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border-rose-500/30' : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border-emerald-500/30'} border font-semibold px-2 py-1 rounded-lg text-[10px] transition">
-                    ${isAktif ? 'Nonaktifkan' : 'Aktifkan'}
-                  </button>
-                  <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
-                    Absen
-                  </button>
-                  <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
-                    Gaji
-                  </button>
-                </div>
-              </div>
-            `;
-          }).join("");
+      // Update Total Counter
+      const countAktifEl = document.getElementById("count-karyawan-aktif");
+      const countNonaktifEl = document.getElementById("count-karyawan-nonaktif");
+      if (countAktifEl) countAktifEl.innerText = karyawanAktifList.length;
+      if (countNonaktifEl) countNonaktifEl.innerText = karyawanNonaktifList.length;
+
+      // Render Karyawan Aktif
+      const containerAktif = document.getElementById("list-karyawan-aktif");
+      if (containerAktif) {
+        if (karyawanAktifList.length === 0) {
+          containerAktif.innerHTML = '<p class="text-xs text-slate-500 py-3 text-center">Tidak ada karyawan aktif.</p>';
+        } else {
+          containerAktif.innerHTML = karyawanAktifList.map(k => renderCardKaryawan(k, true)).join("");
+        }
+      }
+
+      // Render Karyawan Nonaktif
+      const containerNonaktif = document.getElementById("list-karyawan-nonaktif");
+      if (containerNonaktif) {
+        if (karyawanNonaktifList.length === 0) {
+          containerNonaktif.innerHTML = '<p class="text-xs text-slate-500 py-3 text-center">Tidak ada karyawan nonaktif.</p>';
+        } else {
+          containerNonaktif.innerHTML = karyawanNonaktifList.map(k => renderCardKaryawan(k, false)).join("");
         }
       }
     }
   } catch (err) {
     showToast("Gagal menarik data karyawan.");
   }
+}
+
+function renderCardKaryawan(k, isAktif) {
+  const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
+  const nama = k.Nama || k.nama || "Tanpa Nama";
+  const jabatan = k.Jabatan || k.jabatan || "Staf";
+  const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
+  const rate = Number(k.Rate_Gaji || k.rate_gaji || k.rateGaji || 0);
+
+  return `
+    <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs ${!isAktif ? 'opacity-70 grayscale-[20%]' : ''}">
+      <div>
+        <div class="flex items-center gap-1.5">
+          <p class="font-bold text-slate-200">${nama}</p>
+          ${!isAktif ? '<span class="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.2 rounded">Nonaktif</span>' : ''}
+        </div>
+        <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button onclick="toggleStatusKaryawan('${id}', '${isAktif ? 'Nonaktif' : 'Aktif'}')" class="${isAktif ? 'bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border-rose-500/30' : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border-emerald-500/30'} border font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+          ${isAktif ? 'Nonaktifkan' : 'Aktifkan'}
+        </button>
+        <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+          Absen
+        </button>
+        <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+          Gaji
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 async function toggleStatusKaryawan(idKaryawan, statusBaru) {
