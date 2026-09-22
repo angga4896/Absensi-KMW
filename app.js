@@ -1,12 +1,29 @@
-// URL BACKEND API GOOGLE APPS SCRIPT
+// URL BACKEND API GOOGLE APPS SCRIPT TERBARU
 const API_URL = "https://script.google.com/macros/s/AKfycbzLK0xQcu9BZELQDn2NK1WlGsCKlUvlI4Bhn9m0mEBEJV3XqhEI4LhWWxBUrnRzkYBnIg/exec";
+
+// KOORDINAT PRESISI KEDAI MATTOWA (Jl. Palawija 7X, Kel. Tamansari, Kota Mataram)
+const KEDAI_LAT = -8.580793; 
+const KEDAI_LNG = 116.082494; 
+const MAX_RADIUS_METERS = 200; // Radius toleransi presisi (200 Meter)
 
 let html5QrCode = null;
 let isScanning = false;
 let dataKaryawan = [];
 let kalkulasiAktif = null;
 
-// Mengambil Tanggal Lokal Format YYYY-MM-DD
+// Fungsi Menghitung Jarak GPS (Haversine Formula)
+function hitungJarakMeter(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Radius bumi dalam meter
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c);
+}
+
 function getTodayLocalStr() {
   const d = new Date();
   const year = d.getFullYear();
@@ -15,29 +32,22 @@ function getTodayLocalStr() {
   return `${year}-${month}-${day}`;
 }
 
-// Update Header Real-time Jam & Tanggal WITA (Asia/Makassar)
 function updateRealtimeClock() {
   const now = new Date();
-  
   const optionsTgl = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' };
   const optionsJam = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Makassar' };
 
-  const tglStr = now.toLocaleDateString('id-ID', optionsTgl);
-  const jamStr = now.toLocaleTimeString('id-ID', optionsJam);
-
-  const headerDateEl = document.getElementById("header-date") || document.getElementById("current-date");
+  const headerDateEl = document.getElementById("header-date");
   const headerTimeEl = document.getElementById("header-time");
 
-  if (headerDateEl) headerDateEl.innerText = tglStr;
-  if (headerTimeEl) headerTimeEl.innerText = `${jamStr} WITA`;
+  if (headerDateEl) headerDateEl.innerText = now.toLocaleDateString('id-ID', optionsTgl);
+  if (headerTimeEl) headerTimeEl.innerText = `${now.toLocaleTimeString('id-ID', optionsJam)} WITA`;
 }
 
-// INISIALISASI HALAMAN (MEMATIKAN DUPLIKASI PEMANGGILAN)
 document.addEventListener("DOMContentLoaded", () => {
   updateRealtimeClock();
   setInterval(updateRealtimeClock, 1000);
 
-  // Set Rentang Tanggal Laporan Gaji Default (Awal Bulan s/d Hari Ini)
   const today = new Date();
   const firstDayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
   const todayStr = getTodayLocalStr();
@@ -47,35 +57,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (tglMulaiEl) tglMulaiEl.value = firstDayStr;
   if (tglSelesaiEl) tglSelesaiEl.value = todayStr;
-  
+
   if (document.getElementById("add-tipe-gaji")) {
     updateDefaultRate();
   }
 
-  // Muat Data Utama dari Backend Google Apps Script (Hanya Sekali)
   loadKaryawan();
   loadAbsensiHariIni();
-
-  // Logika URL Parameters (Direct Scan Kamera / Auto-Absen via QR URL)
-  const urlParams = new URLSearchParams(window.location.search);
-  
-  if (urlParams.get('action') === 'scan') {
-    setTimeout(() => {
-      if (typeof toggleCameraScanner === 'function') toggleCameraScanner();
-    }, 1000);
-  }
-
-  const autoAbsenId = urlParams.get('absen');
-  if (autoAbsenId) {
-    setTimeout(() => {
-      prosesAbsenInstan(autoAbsenId, "Hadir", "Scan QR URL Langsung");
-    }, 1200);
-  }
-
   registerServiceWorker();
 });
 
-// Toast Notifikasi
 function showToast(msg) {
   const toast = document.getElementById("toast");
   const toastText = document.getElementById("toast-text");
@@ -86,112 +77,30 @@ function showToast(msg) {
   setTimeout(() => {
     toast.classList.add("hidden");
     toast.style.display = 'none';
-  }, 3000);
+  }, 3500);
 }
 
-// SWITCH TAB DENGAN KOMPATIBILITAS KHUSUS HP SAMSUNG / MOBILE BROWSER
 function switchTab(tabName) {
-  const tabs = ['absensi', 'karyawan', 'laporan'];
-  
-  tabs.forEach(t => {
+  ['absensi', 'karyawan', 'laporan'].forEach(t => {
     const elTab = document.getElementById(`tab-${t}`);
     const elNav = document.getElementById(`nav-${t}`);
-    
     if (elTab) {
       if (t === tabName) {
         elTab.classList.remove('hidden');
-        elTab.style.display = 'block'; // Paksa tampil untuk browser HP Samsung
+        elTab.style.display = 'block';
       } else {
         elTab.classList.add('hidden');
-        elTab.style.display = 'none'; // Paksa sembunyikan
+        elTab.style.display = 'none';
       }
     }
-    
     if (elNav) {
-      if (t === tabName) {
-        elNav.className = 'flex flex-col items-center gap-1 text-indigo-400 font-semibold';
-      } else {
-        elNav.className = 'flex flex-col items-center gap-1 text-slate-500 font-semibold hover:text-slate-300 transition';
-      }
+      elNav.className = (t === tabName) 
+        ? 'flex flex-col items-center gap-1 text-brand-600 dark:text-indigo-400 font-bold'
+        : 'flex flex-col items-center gap-1 text-slate-400 font-medium hover:text-slate-600 dark:hover:text-slate-200 transition';
     }
   });
 }
 
-// TOGGLE SCANNER KAMERA BARCODE / QR CODE
-function toggleCameraScanner() {
-  const container = document.getElementById("scanner-container");
-  const btn = document.getElementById("btn-toggle-cam");
-
-  if (!container || !btn) return;
-
-  if (!isScanning) {
-    container.classList.remove("hidden");
-    container.style.display = 'block';
-    btn.innerText = "Tutup Kamera";
-    btn.className = "bg-rose-600 hover:bg-rose-500 text-white font-semibold text-[10px] px-3 py-1.5 rounded-lg transition shadow";
-    
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 220, height: 220 } },
-      onScanSuccess,
-      onScanError
-    ).catch(() => {
-      showToast("Gagal membuka kamera HP.");
-    });
-    isScanning = true;
-  } else {
-    stopScanner();
-  }
-}
-
-function stopScanner() {
-  if (html5QrCode && isScanning) {
-    html5QrCode.stop().then(() => {
-      const container = document.getElementById("scanner-container");
-      const btn = document.getElementById("btn-toggle-cam");
-      if (container) {
-        container.classList.add("hidden");
-        container.style.display = 'none';
-      }
-      if (btn) {
-        btn.innerText = "Buka Kamera Scan";
-        btn.className = "bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[10px] px-3 py-1.5 rounded-lg transition shadow";
-      }
-      isScanning = false;
-    });
-  }
-}
-
-function onScanSuccess(decodedText) {
-  const scannedVal = String(decodedText).trim().toLowerCase();
-  
-  let foundKaryawan = dataKaryawan.find(k => {
-    let id = String(k.ID_Karyawan || k.id || "").trim().toLowerCase();
-    let nama = String(k.Nama || k.nama || "").trim().toLowerCase();
-    return id === scannedVal || nama === scannedVal;
-  });
-
-  if (foundKaryawan) {
-    const idRes = foundKaryawan.ID_Karyawan || foundKaryawan.id;
-    const selectAbsen = document.getElementById("absen-karyawan");
-    if (selectAbsen) selectAbsen.value = idRes;
-    
-    showToast(`Terdeteksi: ${foundKaryawan.Nama}`);
-    
-    let audio = new Audio("https://media.geeksforgeeks.org/wp-content/uploads/20190529122828/bs.mp3");
-    audio.play().catch(() => {});
-
-    prosesAbsenInstan(idRes, "Hadir", "Scan Barcode");
-    stopScanner();
-  } else {
-    showToast(`Barcode (${decodedText}) tidak terdaftar!`);
-  }
-}
-
-function onScanError(errorMessage) {}
-
-// SWITCH SUB-TAB KARYAWAN (AKTIF VS NONAKTIF)
 function switchKaryawanSubTab(subTab) {
   const btnAktif = document.getElementById("subtab-btn-aktif");
   const btnNonaktif = document.getElementById("subtab-btn-nonaktif");
@@ -199,13 +108,13 @@ function switchKaryawanSubTab(subTab) {
   const listNonaktif = document.getElementById("list-karyawan-nonaktif");
 
   if (subTab === 'aktif') {
-    if (btnAktif) btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow";
-    if (btnNonaktif) btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
+    if (btnAktif) btnAktif.className = "py-2 text-center text-xs font-bold rounded-xl bg-brand-600 text-white transition shadow-sm";
+    if (btnNonaktif) btnNonaktif.className = "py-2 text-center text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition";
     if (listAktif) { listAktif.classList.remove("hidden"); listAktif.style.display = 'block'; }
     if (listNonaktif) { listNonaktif.classList.add("hidden"); listNonaktif.style.display = 'none'; }
   } else {
-    if (btnNonaktif) btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-rose-600 text-white transition shadow";
-    if (btnAktif) btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
+    if (btnNonaktif) btnNonaktif.className = "py-2 text-center text-xs font-bold rounded-xl bg-rose-600 text-white transition shadow-sm";
+    if (btnAktif) btnAktif.className = "py-2 text-center text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition";
     if (listNonaktif) { listNonaktif.classList.remove("hidden"); listNonaktif.style.display = 'block'; }
     if (listAktif) { listAktif.classList.add("hidden"); listAktif.style.display = 'none'; }
   }
@@ -226,7 +135,146 @@ function updateDefaultRate() {
   }
 }
 
-// MENARIK DATA KARYAWAN DARI SPREADSHEET
+// PROSES CEK LOKASI GPS KEDAI MATTOWA (-8.580793, 116.082494)
+function verifikasiDanAbsen(idKaryawan, statusCustom, catatanCustom) {
+  if (!navigator.geolocation) {
+    showToast("Fitur GPS lokasi tidak didukung di HP/browser ini.");
+    return;
+  }
+
+  showToast("Mengecek posisi lokasi Anda...");
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const userLat = position.coords.latitude;
+      const userLng = position.coords.longitude;
+
+      // Hitung Jarak pengguna dari Kedai Mattowa
+      const jarakM = hitungJarakMeter(userLat, userLng, KEDAI_LAT, KEDAI_LNG);
+
+      if (jarakM > MAX_RADIUS_METERS) {
+        showToast(`Absen Ditolak! Anda berada di luar area Kedai Mattowa (${jarakM}m dari toko).`);
+        return;
+      }
+
+      const labelLokasi = `Kel. Tamansari (${jarakM}m dari Kedai)`;
+      kirimAbsensiKeServer(idKaryawan, statusCustom, catatanCustom, labelLokasi, userLat, userLng);
+    },
+    (error) => {
+      showToast("Gagal mengambil lokasi! Harap aktifkan fitur GPS di HP Anda.");
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+// KIRIM DATA KE BACKEND SHEETS
+async function kirimAbsensiKeServer(idKaryawan, statusCustom, catatanCustom, labelLokasi, lat, lng) {
+  showToast("Menyimpan Absensi...");
+  const todayLocalStr = getTodayLocalStr();
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "catatAbsensi",
+        id_karyawan: idKaryawan,
+        tanggal: todayLocalStr,
+        status: statusCustom,
+        catatan: catatanCustom,
+        lokasi: labelLokasi,
+        latitude: lat,
+        longitude: lng
+      })
+    });
+    
+    const json = await res.json();
+    if (json.status === "success") {
+      showToast("Absensi Berhasil Disimpan!");
+      const selectAbsen = document.getElementById("absen-karyawan");
+      if (selectAbsen) selectAbsen.value = "";
+      loadAbsensiHariIni();
+    } else {
+      showToast(json.message || "Gagal menyimpan absensi");
+    }
+  } catch (err) {
+    showToast("Gagal terhubung ke server Google Sheets.");
+  }
+}
+
+// FORM ABSENSI SUBMIT HANDLER
+const formAbsensi = document.getElementById("form-absensi");
+if (formAbsensi) {
+  formAbsensi.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const idVal = document.getElementById("absen-karyawan").value;
+    const radioStatus = document.querySelector('input[name="status"]:checked');
+    const inputCatatan = document.getElementById("absen-catatan");
+
+    if (!idVal) {
+      showToast("Pilih nama karyawan terlebih dahulu.");
+      return;
+    }
+
+    const st = radioStatus ? radioStatus.value : "Hadir";
+    const ct = inputCatatan && inputCatatan.value ? inputCatatan.value : "-";
+
+    verifikasiDanAbsen(idVal, st, ct);
+  });
+}
+
+// MENARIK STATUS ABSENSI HARI INI
+async function loadAbsensiHariIni() {
+  const container = document.getElementById("list-absen-hari-ini");
+  const totalBadge = document.getElementById("total-absen-today");
+  if (!container) return;
+
+  try {
+    const res = await fetch(`${API_URL}?action=getAbsensiHariIni`);
+    const json = await res.json();
+
+    if (json.status === "success") {
+      const data = json.data || [];
+      const totalSudahAbsen = data.filter(d => d.sudah_absen).length;
+      if (totalBadge) totalBadge.innerText = `${totalSudahAbsen}/${data.length}`;
+
+      if (data.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 py-3 text-center">Belum ada karyawan aktif.</p>';
+        return;
+      }
+
+      container.innerHTML = data.map(item => {
+        let statusTeks = "Belum Absen";
+        let badgeStyle = "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
+
+        if (item.sudah_absen) {
+          statusTeks = item.status;
+          if (item.status === "Hadir") badgeStyle = "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400";
+          if (item.status === "Setengah Hari") badgeStyle = "bg-sky-500/15 text-sky-600 border-sky-500/30 dark:text-sky-400";
+          if (item.status === "Izin") badgeStyle = "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400";
+          if (item.status === "Alpa") badgeStyle = "bg-rose-500/15 text-rose-600 border-rose-500/30 dark:text-rose-400";
+        }
+
+        return `
+          <div class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs mb-2">
+            <div>
+              <p class="font-bold text-slate-900 dark:text-slate-200">${item.nama}</p>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400">
+                ${item.sudah_absen ? 'Jam: ' + item.jam + ' WITA &bull; ' + (item.lokasi || 'Tamansari') : 'Belum Melakukan Absensi'} 
+              </p>
+            </div>
+            <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${badgeStyle}">
+              ${statusTeks}
+            </span>
+          </div>
+        `;
+      }).join("");
+    }
+  } catch (err) {
+    container.innerHTML = '<p class="text-xs text-rose-400 py-2 text-center">Gagal memuat status harian.</p>';
+  }
+}
+
+// MENARIK KARYAWAN AKTIF & NONAKTIF
 async function loadKaryawan() {
   try {
     const res = await fetch(`${API_URL}?action=getKaryawan`);
@@ -235,14 +283,14 @@ async function loadKaryawan() {
     if (json.status === "success") {
       dataKaryawan = json.data || [];
       
-      let optionsAbsen = '<option value="">-- Pilih Manual atau Scan Barcode --</option>';
+      let optionsAbsen = '<option value="">-- Pilih Nama Karyawan --</option>';
       let optionsLaporan = '<option value="">-- Pilih Karyawan --</option>';
 
       let karyawanAktifList = [];
       let karyawanNonaktifList = [];
 
       dataKaryawan.forEach(k => {
-        const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
+        const id = k.ID_Karyawan || k.id || "";
         const nama = k.Nama || k.nama || "Tanpa Nama";
         const stAktif = k.Status_Aktif || "Aktif";
         const isAktif = stAktif.toLowerCase() === "aktif";
@@ -267,53 +315,46 @@ async function loadKaryawan() {
       if (countAktifEl) countAktifEl.innerText = karyawanAktifList.length;
       if (countNonaktifEl) countNonaktifEl.innerText = karyawanNonaktifList.length;
 
-      const containerAktif = document.getElementById("list-karyawan-aktif") || document.getElementById("list-karyawan");
+      const containerAktif = document.getElementById("list-karyawan-aktif");
       if (containerAktif) {
-        if (karyawanAktifList.length === 0) {
-          containerAktif.innerHTML = '<p class="text-xs text-slate-500 py-3 text-center">Tidak ada karyawan aktif.</p>';
-        } else {
-          containerAktif.innerHTML = karyawanAktifList.map(k => renderCardKaryawan(k, true)).join("");
-        }
+        containerAktif.innerHTML = karyawanAktifList.length === 0 
+          ? '<p class="text-xs text-slate-400 py-3 text-center">Tidak ada karyawan aktif.</p>'
+          : karyawanAktifList.map(k => renderCardKaryawan(k, true)).join("");
       }
 
       const containerNonaktif = document.getElementById("list-karyawan-nonaktif");
       if (containerNonaktif) {
-        if (karyawanNonaktifList.length === 0) {
-          containerNonaktif.innerHTML = '<p class="text-xs text-slate-500 py-3 text-center">Tidak ada karyawan nonaktif.</p>';
-        } else {
-          containerNonaktif.innerHTML = karyawanNonaktifList.map(k => renderCardKaryawan(k, false)).join("");
-        }
+        containerNonaktif.innerHTML = karyawanNonaktifList.length === 0 
+          ? '<p class="text-xs text-slate-400 py-3 text-center">Tidak ada karyawan nonaktif.</p>'
+          : karyawanNonaktifList.map(k => renderCardKaryawan(k, false)).join("");
       }
     }
   } catch (err) {
-    showToast("Gagal menarik data karyawan.");
+    showToast("Gagal memuat data karyawan.");
   }
 }
 
 function renderCardKaryawan(k, isAktif) {
-  const id = k.ID_Karyawan || k.id_karyawan || k.id || "";
+  const id = k.ID_Karyawan || k.id || "";
   const nama = k.Nama || k.nama || "Tanpa Nama";
-  const jabatan = k.Jabatan || k.jabatan || "Staf";
-  const tipe = k.Tipe_Gaji || k.tipe_gaji || k.tipeGaji || "-";
-  const rate = Number(k.Rate_Gaji || k.rate_gaji || k.rateGaji || 0);
+  const jabatan = k.Jabatan || "Staf";
+  const tipe = k.Tipe_Gaji || "-";
+  const rate = Number(k.Rate_Gaji || 0);
 
   return `
-    <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs mb-2 ${!isAktif ? 'opacity-70 grayscale-[20%]' : ''}">
+    <div class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs mb-2">
       <div>
-        <div class="flex items-center gap-1.5">
-          <p class="font-bold text-slate-200">${nama}</p>
-          ${!isAktif ? '<span class="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.2 rounded">Nonaktif</span>' : ''}
-        </div>
-        <p class="text-[10px] text-slate-500">${jabatan} &bull; <span class="text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
+        <p class="font-bold text-slate-900 dark:text-slate-200">${nama}</p>
+        <p class="text-[10px] text-slate-500 dark:text-slate-400">${jabatan} &bull; <span class="text-brand-600 dark:text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
       </div>
       <div class="flex items-center gap-1.5">
-        <button onclick="toggleStatusKaryawan('${id}', '${isAktif ? 'Nonaktif' : 'Aktif'}')" class="${isAktif ? 'bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border-rose-500/30' : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border-emerald-500/30'} border font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+        <button onclick="toggleStatusKaryawan('${id}', '${isAktif ? 'Nonaktif' : 'Aktif'}')" class="border font-semibold px-2 py-1 rounded-lg text-[10px] transition ${isAktif ? 'bg-rose-500/10 text-rose-600 border-rose-500/30' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'}">
           ${isAktif ? 'Nonaktifkan' : 'Aktifkan'}
         </button>
-        <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+        <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-500/10 text-indigo-600 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
           Absen
         </button>
-        <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
+        <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
           Gaji
         </button>
       </div>
@@ -324,7 +365,7 @@ function renderCardKaryawan(k, isAktif) {
 async function toggleStatusKaryawan(idKaryawan, statusBaru) {
   if (!confirm(`Ubah status karyawan ini menjadi ${statusBaru}?`)) return;
 
-  showToast("Memproses status...");
+  showToast("Memproses...");
   try {
     const res = await fetch(API_URL, {
       method: "POST",
@@ -341,123 +382,14 @@ async function toggleStatusKaryawan(idKaryawan, statusBaru) {
       loadKaryawan();
       loadAbsensiHariIni();
     } else {
-      showToast(json.message || "Gagal memperbarui status");
+      showToast(json.message || "Gagal mengubah status");
     }
   } catch (err) {
-    showToast("Gagal terhubung ke server.");
+    showToast("Gagal koneksi ke server.");
   }
 }
 
-// MENARIK STATUS ABSENSI HARI INI
-async function loadAbsensiHariIni() {
-  const container = document.getElementById("list-absen-hari-ini");
-  const totalBadge = document.getElementById("total-absen-today");
-  if (!container) return;
-
-  try {
-    const res = await fetch(`${API_URL}?action=getAbsensiHariIni`);
-    const json = await res.json();
-
-    if (json.status === "success") {
-      const data = json.data || [];
-      const totalSudahAbsen = data.filter(d => d.sudah_absen).length;
-      if (totalBadge) totalBadge.innerText = `${totalSudahAbsen}/${data.length}`;
-
-      if (data.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 py-2 text-center">Belum ada karyawan aktif.</p>';
-        return;
-      }
-
-      container.innerHTML = data.map(item => {
-        let statusTeks = "Belum Absen";
-        let badgeStyle = "bg-slate-800 text-slate-400 border-slate-700";
-
-        if (item.sudah_absen) {
-          statusTeks = item.status;
-          if (item.status === "Hadir") badgeStyle = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-          if (item.status === "Setengah Hari") badgeStyle = "bg-sky-500/20 text-sky-400 border-sky-500/30";
-          if (item.status === "Izin") badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30";
-          if (item.status === "Alpa") badgeStyle = "bg-rose-500/20 text-rose-400 border-rose-500/30";
-        }
-
-        return `
-          <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs mb-2">
-            <div>
-              <p class="font-bold text-slate-200">${item.nama}</p>
-              <p class="text-[10px] text-slate-500">
-                ${item.sudah_absen ? 'Jam: ' + item.jam + ' WITA' : 'Belum Melakukan Absensi'} 
-                ${item.catatan && item.catatan !== '-' ? '&bull; ' + item.catatan : ''}
-              </p>
-            </div>
-            <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${badgeStyle}">
-              ${statusTeks}
-            </span>
-          </div>
-        `;
-      }).join("");
-    } else {
-      container.innerHTML = `<p class="text-xs text-rose-400 py-2 text-center">Gagal: ${json.message}</p>`;
-    }
-  } catch (err) {
-    container.innerHTML = '<p class="text-xs text-rose-400 py-2 text-center">Gagal memuat absensi hari ini.</p>';
-  }
-}
-
-// PROSES CATAT ABSENSI INSTAN
-async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCustom = "-") {
-  if (!idKaryawan) return;
-
-  showToast("Menyimpan Kehadiran...");
-  const todayLocalStr = getTodayLocalStr();
-
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "catatAbsensi",
-        id_karyawan: idKaryawan,
-        tanggal: todayLocalStr,
-        status: statusCustom,
-        catatan: catatanCustom
-      })
-    });
-    
-    const json = await res.json();
-    if (json.status === "success") {
-      showToast(json.message || "Absen Berhasil!");
-      const selectAbsen = document.getElementById("absen-karyawan");
-      if (selectAbsen) selectAbsen.value = "";
-      loadAbsensiHariIni();
-    } else {
-      showToast(json.message || "Gagal menyimpan absensi");
-    }
-  } catch (err) {
-    showToast("Gagal koneksi ke server");
-  }
-}
-
-// HANDLER EVENT FORM ABSENSI
-const formAbsensi = document.getElementById("form-absensi");
-if (formAbsensi) {
-  formAbsensi.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const idVal = document.getElementById("absen-karyawan").value;
-    const radioStatus = document.querySelector('input[name="status"]:checked');
-    const inputCatatan = document.getElementById("absen-catatan");
-
-    if (!idVal) {
-      showToast("Pilih nama karyawan terlebih dahulu.");
-      return;
-    }
-
-    const st = radioStatus ? radioStatus.value : "Hadir";
-    const ct = inputCatatan && inputCatatan.value ? inputCatatan.value : "-";
-
-    prosesAbsenInstan(idVal, st, ct);
-  });
-}
-
-// MODAL POP-UP 1: RIWAYAT ABSENSI KARYAWAN
+// MODAL RIWAYAT ABSENSI
 async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat");
   const modalNama = document.getElementById("modal-nama-karyawan");
@@ -466,7 +398,7 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   if (!modal || !modalContent) return;
 
   modalNama.innerText = namaKaryawan;
-  modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik riwayat absensi 30 hari terakhir...</p>';
+  modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Memuat riwayat...</p>';
   
   modal.classList.remove("hidden");
   modal.style.display = 'flex';
@@ -479,20 +411,20 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
       const riwayat = json.data || [];
 
       if (riwayat.length === 0) {
-        modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Tidak ada catatan absensi dalam 30 hari terakhir.</p>';
+        modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Belum ada catatan absensi.</p>';
         return;
       }
 
       modalContent.innerHTML = riwayat.map(item => {
-        let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-        if (item.status === "Setengah Hari") badgeColor = "bg-sky-500/20 text-sky-400 border-sky-500/30";
-        if (item.status === "Izin") badgeColor = "bg-amber-500/20 text-amber-400 border-amber-500/30";
-        if (item.status === "Alpa") badgeColor = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+        let badgeColor = "bg-emerald-500/15 text-emerald-600 border-emerald-500/30";
+        if (item.status === "Setengah Hari") badgeColor = "bg-sky-500/15 text-sky-600 border-sky-500/30";
+        if (item.status === "Izin") badgeColor = "bg-amber-500/15 text-amber-600 border-amber-500/30";
+        if (item.status === "Alpa") badgeColor = "bg-rose-500/15 text-rose-600 border-rose-500/30";
 
         return `
-          <div class="p-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl flex justify-between items-center text-xs mb-2">
+          <div class="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs mb-2">
             <div>
-              <p class="font-bold text-slate-200">${item.tanggal}</p>
+              <p class="font-bold text-slate-900 dark:text-slate-200">${item.tanggal}</p>
               <p class="text-[10px] text-slate-400">Jam: ${item.jam} WITA ${item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
             </div>
             <span class="px-2 py-0.5 text-[10px] font-bold rounded-full border ${badgeColor}">
@@ -515,7 +447,7 @@ function tutupModalRiwayat() {
   }
 }
 
-// MODAL POP-UP 2: RIWAYAT PEMBAYARAN GAJI (LUNAS)
+// MODAL RIWAYAT GAJI
 async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat-gaji");
   const modalNama = document.getElementById("modal-gaji-nama-karyawan");
@@ -524,7 +456,7 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
   if (!modal || !modalContent) return;
 
   modalNama.innerText = namaKaryawan;
-  modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik data pembayaran gaji...</p>';
+  modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Memuat riwayat gaji...</p>';
   
   modal.classList.remove("hidden");
   modal.style.display = 'flex';
@@ -537,7 +469,7 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
       const riwayat = json.data || [];
 
       if (riwayat.length === 0) {
-        modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Belum ada riwayat pencairan gaji untuk karyawan ini.</p>';
+        modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Belum ada riwayat gaji yang dibayar.</p>';
         return;
       }
 
@@ -546,15 +478,15 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
         const totalRp = Number(item.totalGaji || 0).toLocaleString('id-ID');
 
         return `
-          <div class="p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl space-y-1 text-xs mb-2">
+          <div class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1 text-xs mb-2">
             <div class="flex justify-between items-center">
-              <span class="font-bold text-emerald-400 text-sm">Rp ${totalRp}</span>
-              <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">Rp ${totalRp}</span>
+              <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
                 ${item.status}
               </span>
             </div>
-            <div class="flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-700/40 pt-1.5 mt-1">
-              <span>Periode: <b class="text-slate-200">${periodeTxt}</b></span>
+            <div class="flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-1.5 mt-1">
+              <span>Periode: <b class="text-slate-700 dark:text-slate-200">${periodeTxt}</b></span>
               <span>Dibayar: ${item.tanggalBayar}</span>
             </div>
           </div>
@@ -585,7 +517,7 @@ if (formTambahKaryawan) {
     const tipeGaji = document.getElementById("add-tipe-gaji").value;
     const rateGaji = document.getElementById("add-rate-gaji").value;
 
-    showToast("Menyimpan ke Google Sheets...");
+    showToast("Menyimpan karyawan...");
 
     try {
       const res = await fetch(API_URL, {
@@ -615,7 +547,7 @@ if (formTambahKaryawan) {
   });
 }
 
-// PROSES HITUNG & TRACKING GAJI
+// PROSES HITUNG GAJI
 const btnHitungGaji = document.getElementById("btn-hitung-gaji");
 if (btnHitungGaji) {
   btnHitungGaji.addEventListener("click", async () => {
@@ -624,11 +556,11 @@ if (btnHitungGaji) {
     const tglSelesai = document.getElementById("laporan-tgl-selesai").value;
 
     if (!idKaryawan || !tglMulai || !tglSelesai) {
-      showToast("Lengkapi karyawan dan rentang tanggal.");
+      showToast("Lengkapi nama karyawan & rentang tanggal.");
       return;
     }
 
-    showToast("Memproses kalkulasi...");
+    showToast("Menghitung kalkulasi...");
 
     try {
       const resGaji = await fetch(`${API_URL}?action=hitungkalkulasiGaji&id_karyawan=${idKaryawan}&tgl_mulai=${tglMulai}&tgl_selesai=${tglSelesai}`);
@@ -654,11 +586,11 @@ if (btnHitungGaji) {
         const areaAksi = document.getElementById("area-aksi-bayar");
 
         if (jsonStatus.dibayar) {
-          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-500/15 text-emerald-600 border border-emerald-500/30";
           badge.innerText = "LUNAS";
           if (areaAksi) { areaAksi.classList.add("hidden"); areaAksi.style.display = 'none'; }
         } else {
-          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30";
+          badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-500/15 text-amber-600 border border-amber-500/30";
           badge.innerText = "BELUM DIBAYAR";
           if (areaAksi) { areaAksi.classList.remove("hidden"); areaAksi.style.display = 'block'; }
         }
@@ -670,12 +602,12 @@ if (btnHitungGaji) {
         }
       }
     } catch (err) {
-      showToast("Gagal mengambil data kalkulasi.");
+      showToast("Gagal mengambil kalkulasi gaji.");
     }
   });
 }
 
-// PROSES BAYAR GAJI (LUNAS)
+// BAYAR GAJI
 const btnBayarGaji = document.getElementById("btn-bayar-gaji");
 if (btnBayarGaji) {
   btnBayarGaji.addEventListener("click", async () => {
@@ -708,11 +640,8 @@ if (btnBayarGaji) {
   });
 }
 
-// REGISTER PWA SERVICE WORKER
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('Service Worker Registered'))
-      .catch(err => console.error('SW Failed', err));
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
