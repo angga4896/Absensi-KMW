@@ -1,4 +1,4 @@
-// URL BACKEND API TERSINKRONISASI
+// URL BACKEND API GOOGLE APPS SCRIPT
 const API_URL = "https://script.google.com/macros/s/AKfycbzLK0xQcu9BZELQDn2NK1WlGsCKlUvlI4Bhn9m0mEBEJV3XqhEI4LhWWxBUrnRzkYBnIg/exec";
 
 let html5QrCode = null;
@@ -6,6 +6,7 @@ let isScanning = false;
 let dataKaryawan = [];
 let kalkulasiAktif = null;
 
+// Mengambil Tanggal Lokal Format YYYY-MM-DD
 function getTodayLocalStr() {
   const d = new Date();
   const year = d.getFullYear();
@@ -14,7 +15,7 @@ function getTodayLocalStr() {
   return `${year}-${month}-${day}`;
 }
 
-// Update Header Real-time Jam & Tanggal WITA (Mataram, NTB)
+// Update Header Real-time Jam & Tanggal WITA (Asia/Makassar)
 function updateRealtimeClock() {
   const now = new Date();
   
@@ -24,37 +25,38 @@ function updateRealtimeClock() {
   const tglStr = now.toLocaleDateString('id-ID', optionsTgl);
   const jamStr = now.toLocaleTimeString('id-ID', optionsJam);
 
-  const headerDateEl = document.getElementById("header-date");
+  const headerDateEl = document.getElementById("header-date") || document.getElementById("current-date");
   const headerTimeEl = document.getElementById("header-time");
 
   if (headerDateEl) headerDateEl.innerText = tglStr;
   if (headerTimeEl) headerTimeEl.innerText = `${jamStr} WITA`;
 }
 
-// INISIALISASI HALAMAN
+// INISIALISASI HALAMAN (MEMATIKAN DUPLIKASI PEMANGGILAN)
 document.addEventListener("DOMContentLoaded", () => {
   updateRealtimeClock();
   setInterval(updateRealtimeClock, 1000);
 
-  // Set Rentang Tanggal Laporan Gaji Default (Awal Bulan - Hari Ini)
+  // Set Rentang Tanggal Laporan Gaji Default (Awal Bulan s/d Hari Ini)
   const today = new Date();
   const firstDayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
   const todayStr = getTodayLocalStr();
 
-  if (document.getElementById("laporan-tgl-mulai")) {
-    document.getElementById("laporan-tgl-mulai").value = firstDayStr;
-    document.getElementById("laporan-tgl-selesai").value = todayStr;
-  }
+  const tglMulaiEl = document.getElementById("laporan-tgl-mulai");
+  const tglSelesaiEl = document.getElementById("laporan-tgl-selesai");
+
+  if (tglMulaiEl) tglMulaiEl.value = firstDayStr;
+  if (tglSelesaiEl) tglSelesaiEl.value = todayStr;
   
   if (document.getElementById("add-tipe-gaji")) {
     updateDefaultRate();
   }
 
-  // Muat Data dari Google Apps Script (Hanya Dipanggil Sekali)
+  // Muat Data Utama dari Backend Google Apps Script (Hanya Sekali)
   loadKaryawan();
   loadAbsensiHariIni();
 
-  // Logika URL Parameters (Scan Kamera / Auto-Absen)
+  // Logika URL Parameters (Direct Scan Kamera / Auto-Absen via QR URL)
   const urlParams = new URLSearchParams(window.location.search);
   
   if (urlParams.get('action') === 'scan') {
@@ -73,33 +75,46 @@ document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
 });
 
+// Toast Notifikasi
 function showToast(msg) {
   const toast = document.getElementById("toast");
   const toastText = document.getElementById("toast-text");
   if (!toast) return;
   if (toastText) toastText.innerText = msg;
   toast.classList.remove("hidden");
-  setTimeout(() => toast.classList.add("hidden"), 3000);
+  toast.style.display = 'flex';
+  setTimeout(() => {
+    toast.classList.add("hidden");
+    toast.style.display = 'none';
+  }, 3000);
 }
 
+// SWITCH TAB DENGAN KOMPATIBILITAS KHUSUS HP SAMSUNG / MOBILE BROWSER
 function switchTab(tabName) {
-  ['absensi', 'karyawan', 'laporan'].forEach(t => {
+  const tabs = ['absensi', 'karyawan', 'laporan'];
+  
+  tabs.forEach(t => {
     const elTab = document.getElementById(`tab-${t}`);
     const elNav = document.getElementById(`nav-${t}`);
-    if (elTab) elTab.classList.add('hidden');
+    
+    if (elTab) {
+      if (t === tabName) {
+        elTab.classList.remove('hidden');
+        elTab.style.display = 'block'; // Paksa tampil untuk browser HP Samsung
+      } else {
+        elTab.classList.add('hidden');
+        elTab.style.display = 'none'; // Paksa sembunyikan
+      }
+    }
+    
     if (elNav) {
-      elNav.classList.remove('text-indigo-400');
-      elNav.classList.add('text-slate-500');
+      if (t === tabName) {
+        elNav.className = 'flex flex-col items-center gap-1 text-indigo-400 font-semibold';
+      } else {
+        elNav.className = 'flex flex-col items-center gap-1 text-slate-500 font-semibold hover:text-slate-300 transition';
+      }
     }
   });
-  
-  const activeTab = document.getElementById(`tab-${tabName}`);
-  const activeNav = document.getElementById(`nav-${tabName}`);
-  if (activeTab) activeTab.classList.remove('hidden');
-  if (activeNav) {
-    activeNav.classList.remove('text-slate-500');
-    activeNav.classList.add('text-indigo-400');
-  }
 }
 
 // TOGGLE SCANNER KAMERA BARCODE / QR CODE
@@ -111,6 +126,7 @@ function toggleCameraScanner() {
 
   if (!isScanning) {
     container.classList.remove("hidden");
+    container.style.display = 'block';
     btn.innerText = "Tutup Kamera";
     btn.className = "bg-rose-600 hover:bg-rose-500 text-white font-semibold text-[10px] px-3 py-1.5 rounded-lg transition shadow";
     
@@ -134,7 +150,10 @@ function stopScanner() {
     html5QrCode.stop().then(() => {
       const container = document.getElementById("scanner-container");
       const btn = document.getElementById("btn-toggle-cam");
-      if (container) container.classList.add("hidden");
+      if (container) {
+        container.classList.add("hidden");
+        container.style.display = 'none';
+      }
       if (btn) {
         btn.innerText = "Buka Kamera Scan";
         btn.className = "bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[10px] px-3 py-1.5 rounded-lg transition shadow";
@@ -172,7 +191,7 @@ function onScanSuccess(decodedText) {
 
 function onScanError(errorMessage) {}
 
-// BERALIH ANTARA SUB-TAB KARYAWAN AKTIF VS NONAKTIF
+// SWITCH SUB-TAB KARYAWAN (AKTIF VS NONAKTIF)
 function switchKaryawanSubTab(subTab) {
   const btnAktif = document.getElementById("subtab-btn-aktif");
   const btnNonaktif = document.getElementById("subtab-btn-nonaktif");
@@ -182,13 +201,13 @@ function switchKaryawanSubTab(subTab) {
   if (subTab === 'aktif') {
     if (btnAktif) btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow";
     if (btnNonaktif) btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
-    if (listAktif) listAktif.classList.remove("hidden");
-    if (listNonaktif) listNonaktif.classList.add("hidden");
+    if (listAktif) { listAktif.classList.remove("hidden"); listAktif.style.display = 'block'; }
+    if (listNonaktif) { listNonaktif.classList.add("hidden"); listNonaktif.style.display = 'none'; }
   } else {
     if (btnNonaktif) btnNonaktif.className = "py-1.5 text-center text-xs font-bold rounded-lg bg-rose-600 text-white transition shadow";
     if (btnAktif) btnAktif.className = "py-1.5 text-center text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition";
-    if (listNonaktif) listNonaktif.classList.remove("hidden");
-    if (listAktif) listAktif.classList.add("hidden");
+    if (listNonaktif) { listNonaktif.classList.remove("hidden"); listNonaktif.style.display = 'block'; }
+    if (listAktif) { listAktif.classList.add("hidden"); listAktif.style.display = 'none'; }
   }
 }
 
@@ -207,6 +226,7 @@ function updateDefaultRate() {
   }
 }
 
+// MENARIK DATA KARYAWAN DARI SPREADSHEET
 async function loadKaryawan() {
   try {
     const res = await fetch(`${API_URL}?action=getKaryawan`);
@@ -247,7 +267,7 @@ async function loadKaryawan() {
       if (countAktifEl) countAktifEl.innerText = karyawanAktifList.length;
       if (countNonaktifEl) countNonaktifEl.innerText = karyawanNonaktifList.length;
 
-      const containerAktif = document.getElementById("list-karyawan-aktif");
+      const containerAktif = document.getElementById("list-karyawan-aktif") || document.getElementById("list-karyawan");
       if (containerAktif) {
         if (karyawanAktifList.length === 0) {
           containerAktif.innerHTML = '<p class="text-xs text-slate-500 py-3 text-center">Tidak ada karyawan aktif.</p>';
@@ -278,7 +298,7 @@ function renderCardKaryawan(k, isAktif) {
   const rate = Number(k.Rate_Gaji || k.rate_gaji || k.rateGaji || 0);
 
   return `
-    <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs ${!isAktif ? 'opacity-70 grayscale-[20%]' : ''}">
+    <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs mb-2 ${!isAktif ? 'opacity-70 grayscale-[20%]' : ''}">
       <div>
         <div class="flex items-center gap-1.5">
           <p class="font-bold text-slate-200">${nama}</p>
@@ -328,6 +348,7 @@ async function toggleStatusKaryawan(idKaryawan, statusBaru) {
   }
 }
 
+// MENARIK STATUS ABSENSI HARI INI
 async function loadAbsensiHariIni() {
   const container = document.getElementById("list-absen-hari-ini");
   const totalBadge = document.getElementById("total-absen-today");
@@ -360,7 +381,7 @@ async function loadAbsensiHariIni() {
         }
 
         return `
-          <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs">
+          <div class="p-3 bg-slate-900/60 border border-slate-700/40 rounded-xl flex justify-between items-center text-xs mb-2">
             <div>
               <p class="font-bold text-slate-200">${item.nama}</p>
               <p class="text-[10px] text-slate-500">
@@ -382,6 +403,7 @@ async function loadAbsensiHariIni() {
   }
 }
 
+// PROSES CATAT ABSENSI INSTAN
 async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCustom = "-") {
   if (!idKaryawan) return;
 
@@ -414,22 +436,7 @@ async function prosesAbsenInstan(idKaryawan, statusCustom = "Hadir", catatanCust
   }
 }
 
-const selectAbsen = document.getElementById("absen-karyawan");
-if (selectAbsen) {
-  selectAbsen.addEventListener("change", (e) => {
-    const idVal = e.target.value;
-    if (idVal) {
-      const radioStatus = document.querySelector('input[name="status"]:checked');
-      const inputCatatan = document.getElementById("absen-catatan");
-      
-      const st = radioStatus ? radioStatus.value : "Hadir";
-      const ct = inputCatatan && inputCatatan.value ? inputCatatan.value : "-";
-      
-      prosesAbsenInstan(idVal, st, ct);
-    }
-  });
-}
-
+// HANDLER EVENT FORM ABSENSI
 const formAbsensi = document.getElementById("form-absensi");
 if (formAbsensi) {
   formAbsensi.addEventListener("submit", (e) => {
@@ -450,6 +457,7 @@ if (formAbsensi) {
   });
 }
 
+// MODAL POP-UP 1: RIWAYAT ABSENSI KARYAWAN
 async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat");
   const modalNama = document.getElementById("modal-nama-karyawan");
@@ -459,7 +467,9 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
 
   modalNama.innerText = namaKaryawan;
   modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik riwayat absensi 30 hari terakhir...</p>';
+  
   modal.classList.remove("hidden");
+  modal.style.display = 'flex';
 
   try {
     const res = await fetch(`${API_URL}?action=getRiwayatKaryawan&id_karyawan=${idKaryawan}`);
@@ -480,7 +490,7 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
         if (item.status === "Alpa") badgeColor = "bg-rose-500/20 text-rose-400 border-rose-500/30";
 
         return `
-          <div class="p-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl flex justify-between items-center text-xs">
+          <div class="p-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl flex justify-between items-center text-xs mb-2">
             <div>
               <p class="font-bold text-slate-200">${item.tanggal}</p>
               <p class="text-[10px] text-slate-400">Jam: ${item.jam} WITA ${item.catatan !== '-' ? '&bull; ' + item.catatan : ''}</p>
@@ -499,9 +509,13 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
 
 function tutupModalRiwayat() {
   const modal = document.getElementById("modal-riwayat");
-  if (modal) modal.classList.add("hidden");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = 'none';
+  }
 }
 
+// MODAL POP-UP 2: RIWAYAT PEMBAYARAN GAJI (LUNAS)
 async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat-gaji");
   const modalNama = document.getElementById("modal-gaji-nama-karyawan");
@@ -511,7 +525,9 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
 
   modalNama.innerText = namaKaryawan;
   modalContent.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">Menarik data pembayaran gaji...</p>';
+  
   modal.classList.remove("hidden");
+  modal.style.display = 'flex';
 
   try {
     const res = await fetch(`${API_URL}?action=getRiwayatGajiKaryawan&id_karyawan=${idKaryawan}`);
@@ -530,7 +546,7 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
         const totalRp = Number(item.totalGaji || 0).toLocaleString('id-ID');
 
         return `
-          <div class="p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl space-y-1 text-xs">
+          <div class="p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl space-y-1 text-xs mb-2">
             <div class="flex justify-between items-center">
               <span class="font-bold text-emerald-400 text-sm">Rp ${totalRp}</span>
               <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -552,9 +568,13 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
 
 function tutupModalRiwayatGaji() {
   const modal = document.getElementById("modal-riwayat-gaji");
-  if (modal) modal.classList.add("hidden");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = 'none';
+  }
 }
 
+// FORM TAMBAH KARYAWAN
 const formTambahKaryawan = document.getElementById("form-tambah-karyawan");
 if (formTambahKaryawan) {
   formTambahKaryawan.addEventListener("submit", async (e) => {
@@ -595,6 +615,7 @@ if (formTambahKaryawan) {
   });
 }
 
+// PROSES HITUNG & TRACKING GAJI
 const btnHitungGaji = document.getElementById("btn-hitung-gaji");
 if (btnHitungGaji) {
   btnHitungGaji.addEventListener("click", async () => {
@@ -623,7 +644,8 @@ if (btnHitungGaji) {
 
         document.getElementById("res-nama").innerText = d.karyawan.nama;
         document.getElementById("res-hadir").innerText = d.rekapKehadiran.hadir;
-        document.getElementById("res-setengah").innerText = d.rekapKehadiran.setengahHari || 0;
+        const resSetengah = document.getElementById("res-setengah");
+        if (resSetengah) resSetengah.innerText = d.rekapKehadiran.setengahHari || 0;
         document.getElementById("res-izin").innerText = d.rekapKehadiran.izin;
         document.getElementById("res-alpa").innerText = d.rekapKehadiran.alpa;
         document.getElementById("res-total").innerText = `Rp ${Number(d.totalGajiDiterima).toLocaleString('id-ID')}`;
@@ -634,14 +656,18 @@ if (btnHitungGaji) {
         if (jsonStatus.dibayar) {
           badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
           badge.innerText = "LUNAS";
-          if (areaAksi) areaAksi.classList.add("hidden");
+          if (areaAksi) { areaAksi.classList.add("hidden"); areaAksi.style.display = 'none'; }
         } else {
           badge.className = "px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30";
           badge.innerText = "BELUM DIBAYAR";
-          if (areaAksi) areaAksi.classList.remove("hidden");
+          if (areaAksi) { areaAksi.classList.remove("hidden"); areaAksi.style.display = 'block'; }
         }
 
-        document.getElementById("hasil-gaji").classList.remove("hidden");
+        const hasilGajiEl = document.getElementById("hasil-gaji");
+        if (hasilGajiEl) {
+          hasilGajiEl.classList.remove("hidden");
+          hasilGajiEl.style.display = 'block';
+        }
       }
     } catch (err) {
       showToast("Gagal mengambil data kalkulasi.");
@@ -649,6 +675,7 @@ if (btnHitungGaji) {
   });
 }
 
+// PROSES BAYAR GAJI (LUNAS)
 const btnBayarGaji = document.getElementById("btn-bayar-gaji");
 if (btnBayarGaji) {
   btnBayarGaji.addEventListener("click", async () => {
@@ -681,6 +708,7 @@ if (btnBayarGaji) {
   });
 }
 
+// REGISTER PWA SERVICE WORKER
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
