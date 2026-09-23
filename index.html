@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kedae Mattowa - Absensi & Gaji</title>
   
-  <!-- Tailwind CSS CDN dengan Kustomisasi Warna Modern -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -26,9 +25,7 @@
     }
   </script>
   
-  <!-- HTML5 QR Code Scanner CDN -->
   <script src="https://unpkg.com/html5-qrcode"></script>
-  
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
   <style>
@@ -36,12 +33,17 @@
       -webkit-tap-highlight-color: transparent;
       transition: background-color 0.3s ease, color 0.3s ease;
     }
+    @media print {
+      body * { visibility: hidden; }
+      #modal-kwitansi, #modal-kwitansi * { visibility: visible; }
+      #modal-kwitansi { position: absolute; left: 0; top: 0; width: 100%; }
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white relative">
 
-  <!-- Header & Navigation Bar -->
-  <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 sticky top-0 z-50 transition-colors">
+  <!-- Header -->
+  <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 sticky top-0 z-40 transition-colors">
     <div class="max-w-md mx-auto flex justify-between items-center">
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-brand-500/20">
@@ -54,58 +56,33 @@
       </div>
       
       <div class="flex items-center gap-2">
-        <!-- Tombol Toggle Mode Terang / Gelap -->
         <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition" title="Ubah Mode Tampilan">
-          <!-- Sun Icon (Muncul saat Dark Mode) -->
           <svg id="theme-toggle-light-icon" class="hidden w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z"></path>
           </svg>
-          <!-- Moon Icon (Muncul saat Light Mode) -->
-          <svg id="theme-toggle-dark-icon" class="hidden w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+          <svg id="theme-toggle-dark-icon" class="hidden w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
             <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
           </svg>
         </button>
-
-        <!-- Jam Realtime WITA -->
         <span id="header-time" class="text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 rounded-xl text-brand-600 dark:text-emerald-400 shadow-sm"></span>
       </div>
     </div>
   </header>
 
-  <!-- Main Content Area -->
+  <!-- Main Area -->
   <main class="max-w-md mx-auto w-full p-4 flex-grow mb-20 space-y-4">
 
-    <!-- Toast Pop-up Notification -->
+    <!-- Toast Notification -->
     <div id="toast" class="hidden fixed top-16 left-1/2 -translate-x-1/2 bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-700 text-white text-xs px-4 py-2.5 rounded-full shadow-xl z-50 items-center gap-2 transition">
       <span id="toast-text" class="font-medium"></span>
     </div>
 
-    <!-- =================================================================== -->
-    <!-- 1. TAB ABSENSI HARIAN -->
-    <!-- =================================================================== -->
+    <!-- TAB ABSENSI -->
     <section id="tab-absensi" class="space-y-4">
-      
-      <!-- Card Tombol QR Kamera Scan -->
-      <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex justify-between items-center transition">
-        <div>
-          <p class="text-xs font-bold text-slate-800 dark:text-slate-200">Scan Barcode / QR</p>
-          <p class="text-[11px] text-slate-500 dark:text-slate-400">Arahkan kamera HP ke ID Card</p>
-        </div>
-        <button id="btn-toggle-cam" onclick="toggleCameraScanner()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md shadow-brand-500/20 active:scale-95">
-          Buka Kamera Scan
-        </button>
-      </div>
-
-      <!-- Container Reader Scanner Kamera -->
-      <div id="scanner-container" class="hidden bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-inner">
-        <div id="reader" class="w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700"></div>
-      </div>
-
-      <!-- Form Manual Absensi Harian -->
       <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3.5 transition">
         <div class="flex items-center justify-between">
           <h2 class="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">Form Absensi Harian</h2>
-          <span class="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-medium">Praktis & Otomatis</span>
+          <span class="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-medium">Sistem GPS Kedai</span>
         </div>
         
         <form id="form-absensi" class="space-y-3">
@@ -118,7 +95,6 @@
 
           <div>
             <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Status Kehadiran</label>
-            <!-- 4 Opsi Status Kehadiran (Termasuk Setengah Hari) -->
             <div class="grid grid-cols-4 gap-1.5">
               <label class="cursor-pointer">
                 <input type="radio" name="status" value="Hadir" class="peer hidden" checked>
@@ -141,7 +117,7 @@
 
           <div>
             <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Catatan / Keterangan (Opsional)</label>
-            <input type="text" id="absen-catatan" placeholder="Contoh: Pulang jam 12 (Sakit pusing)" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
+            <input type="text" id="absen-catatan" placeholder="Sakit flu / Keperluan keluarga" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
           </div>
 
           <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-brand-500/20 transition active:scale-95">
@@ -150,7 +126,6 @@
         </form>
       </div>
 
-      <!-- Status Kehadiran Hari Ini -->
       <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3 transition">
         <div class="flex justify-between items-center">
           <h2 class="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">Status Absensi Hari Ini</h2>
@@ -162,12 +137,8 @@
       </div>
     </section>
 
-    <!-- =================================================================== -->
-    <!-- 2. TAB KELOLA KARYAWAN (SUB-TAB PEMISAH AKTIF & NONAKTIF) -->
-    <!-- =================================================================== -->
-    <section id="tab-karyawan" class="hidden space-y-4">
-      
-      <!-- Sub-Tab Navigasi Pemisah Karyawan Aktif vs Nonaktif -->
+    <!-- TAB KELOLA KARYAWAN -->
+    <section id="tab-karyawan" class="hidden space-y-4 relative">
       <div class="grid grid-cols-2 gap-2 bg-slate-200/60 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
         <button id="subtab-btn-aktif" onclick="switchKaryawanSubTab('aktif')" class="py-2 text-center text-xs font-bold rounded-xl bg-brand-600 text-white transition shadow-sm">
           Karyawan Aktif (<span id="count-karyawan-aktif">0</span>)
@@ -177,51 +148,19 @@
         </button>
       </div>
 
-      <!-- Form Tambah Karyawan Baru -->
-      <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3.5 transition">
-        <h2 class="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">+ Tambah Karyawan Baru</h2>
-        <form id="form-tambah-karyawan" class="space-y-3">
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Nama Lengkap</label>
-            <input type="text" id="add-nama" placeholder="Contoh: Budi Santoso" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
-          </div>
-
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Jabatan</label>
-            <input type="text" id="add-jabatan" value="Staf" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Tipe Penggajian</label>
-              <select id="add-tipe-gaji" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" onchange="updateDefaultRate()">
-                <option value="Harian">Harian</option>
-                <option value="Mingguan">Mingguan</option>
-                <option value="Bulanan">Bulanan</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Rate Gaji (Rp)</label>
-              <input type="number" id="add-rate-gaji" placeholder="50000" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
-            </div>
-          </div>
-
-          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition active:scale-95">
-            Simpan Karyawan
-          </button>
-        </form>
-      </div>
-
-      <!-- Container Daftar Karyawan Aktif -->
       <div id="list-karyawan-aktif" class="space-y-2"></div>
-      
-      <!-- Container Daftar Karyawan Nonaktif -->
       <div id="list-karyawan-nonaktif" class="hidden space-y-2"></div>
+
+      <!-- FAB TAMBAH KARYAWAN -->
+      <button onclick="bukaModalTambahKaryawan()" class="fixed bottom-20 right-5 z-40 bg-brand-600 hover:bg-brand-700 text-white p-3.5 rounded-full shadow-2xl flex items-center gap-2 transition active:scale-90 border border-brand-400/30">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+        </svg>
+        <span class="text-xs font-bold pr-1">Tambah Karyawan</span>
+      </button>
     </section>
 
-    <!-- =================================================================== -->
-    <!-- 3. TAB LAPORAN GAJI & RENTANG PERIODE -->
-    <!-- =================================================================== -->
+    <!-- TAB LAPORAN GAJI -->
     <section id="tab-laporan" class="hidden space-y-4">
       <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3.5 transition">
         <h2 class="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">Tracking & Kalkulasi Gaji</h2>
@@ -232,7 +171,6 @@
             <select id="laporan-karyawan" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition"></select>
           </div>
 
-          <!-- RENTANG TANGGAL PENGGAJIAN (MULAI S/D SELESAI) -->
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Tanggal Mulai</label>
@@ -249,14 +187,12 @@
           </button>
         </div>
 
-        <!-- HASIL KALKULASI GAJI -->
         <div id="hasil-gaji" class="hidden border-t border-slate-200 dark:border-slate-800 pt-4 space-y-3 text-xs">
           <div class="flex justify-between items-center">
             <span id="res-nama" class="font-bold text-sm text-slate-900 dark:text-slate-100"></span>
             <span id="badge-status" class="px-3 py-1 rounded-full font-bold text-[10px]"></span>
           </div>
 
-          <!-- Grid Rekapitulasi Hadir (Termasuk Setengah Hari) -->
           <div class="grid grid-cols-4 gap-1.5 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl text-center border border-slate-200 dark:border-slate-800">
             <div><span class="block text-[9px] text-slate-400 font-medium">Hadir</span><b id="res-hadir" class="text-emerald-600 dark:text-emerald-400 text-xs">0</b></div>
             <div><span class="block text-[9px] text-slate-400 font-medium">1/2 Hari</span><b id="res-setengah" class="text-sky-600 dark:text-sky-400 text-xs">0</b></div>
@@ -271,7 +207,7 @@
 
           <div id="area-aksi-bayar" class="pt-2">
             <button id="btn-bayar-gaji" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition active:scale-95">
-              Tandai LUNAS (Proses Bayar)
+              Tandai LUNAS & Cetak Kwitansi
             </button>
           </div>
         </div>
@@ -280,7 +216,180 @@
 
   </main>
 
-  <!-- Modal Pop-Up Riwayat Absensi Karyawan -->
+  <!-- MODAL DETAIL KARYAWAN -->
+  <div id="modal-detail-karyawan" class="hidden fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div>
+          <h3 id="detail-nama" class="text-sm font-bold text-slate-900 dark:text-slate-100"></h3>
+          <p id="detail-jabatan" class="text-xs text-brand-600 dark:text-indigo-400 font-semibold"></p>
+        </div>
+        <button onclick="tutupModalDetailKaryawan()" class="text-slate-400 hover:text-slate-800 dark:hover:text-white font-bold text-sm px-2">✕</button>
+      </div>
+
+      <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+        <div class="flex justify-between"><span class="text-slate-500">ID Karyawan:</span><b id="detail-id" class="text-slate-800 dark:text-slate-200 font-mono"></b></div>
+        <div class="flex justify-between"><span class="text-slate-500">Tipe Penggajian:</span><b id="detail-tipe" class="text-slate-800 dark:text-slate-200"></b></div>
+        <div class="flex justify-between"><span class="text-slate-500">Rate Gaji:</span><b id="detail-rate" class="text-emerald-600 dark:text-emerald-400 font-bold"></b></div>
+        <div class="flex justify-between"><span class="text-slate-500">Status Keaktifan:</span><b id="detail-status-badge" class="px-2 py-0.5 rounded-md text-[10px] font-bold"></b></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button id="btn-action-absen" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs transition">
+          Cek Riwayat Absen
+        </button>
+        <button id="btn-action-gaji" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition">
+          Cek Riwayat Gaji
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 border-t border-slate-200 dark:border-slate-800 pt-3">
+        <button id="btn-action-edit" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold py-2.5 rounded-xl text-xs transition">
+          Edit Data
+        </button>
+        <button id="btn-action-toggle" class="font-bold py-2.5 rounded-xl text-xs transition">
+          Ubah Status
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT KARYAWAN -->
+  <div id="modal-edit-karyawan" class="hidden fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+        <h3 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Edit Data Karyawan</h3>
+        <button onclick="tutupModalEditKaryawan()" class="text-slate-400 hover:text-slate-800 dark:hover:text-white font-bold text-sm px-2">✕</button>
+      </div>
+
+      <form id="form-edit-karyawan" class="space-y-3">
+        <input type="hidden" id="edit-id">
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Nama Lengkap</label>
+          <input type="text" id="edit-nama" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Jabatan</label>
+          <input type="text" id="edit-jabatan" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Tipe Gaji</label>
+            <select id="edit-tipe-gaji" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
+              <option value="Harian">Harian</option>
+              <option value="Mingguan">Mingguan</option>
+              <option value="Bulanan">Bulanan</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Rate Gaji (Rp)</label>
+            <input type="number" id="edit-rate-gaji" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs shadow-md transition active:scale-95">
+          Simpan Perubahan
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL FORM TAMBAH KARYAWAN -->
+  <div id="modal-tambah-karyawan" class="hidden fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+        <h3 class="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">+ Tambah Karyawan Baru</h3>
+        <button onclick="tutupModalTambahKaryawan()" class="text-slate-400 hover:text-slate-800 dark:hover:text-white font-bold text-sm px-2">✕</button>
+      </div>
+
+      <form id="form-tambah-karyawan" class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Nama Lengkap</label>
+          <input type="text" id="add-nama" placeholder="Contoh: Budi Santoso" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Jabatan</label>
+          <input type="text" id="add-jabatan" value="Staf" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Tipe Penggajian</label>
+            <select id="add-tipe-gaji" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" onchange="updateDefaultRate()">
+              <option value="Harian">Harian</option>
+              <option value="Mingguan">Mingguan</option>
+              <option value="Bulanan">Bulanan</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Rate Gaji (Rp)</label>
+            <input type="number" id="add-rate-gaji" placeholder="50000" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition" required>
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition active:scale-95">
+          Simpan Karyawan
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL KWITANSI & TANDA TERIMA GAJI -->
+  <div id="modal-kwitansi" class="hidden fixed inset-0 bg-slate-900/70 dark:bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl my-auto">
+      <div class="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Kwitansi Gaji</h3>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400">Kedai Mattowa - Mataram</p>
+        </div>
+        <button onclick="tutupModalKwitansi()" class="text-slate-400 hover:text-slate-800 dark:hover:text-white font-bold text-sm px-2">✕</button>
+      </div>
+
+      <div id="kwitansi-print-area" class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+        <div class="flex justify-between items-center text-[10px] text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <span>No: <b id="kwitansi-no" class="text-slate-700 dark:text-slate-300">KW-000000</b></span>
+          <span id="kwitansi-tgl"></span>
+        </div>
+
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-slate-500">Nama Penerima:</span><b id="kwitansi-nama" class="text-slate-900 dark:text-slate-100"></b></div>
+          <div class="flex justify-between"><span class="text-slate-500">Jabatan:</span><span id="kwitansi-jabatan" class="text-slate-700 dark:text-slate-300"></span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Periode Kerja:</span><span id="kwitansi-periode" class="text-slate-700 dark:text-slate-300 font-mono text-[11px]"></span></div>
+        </div>
+
+        <div class="border-t border-b border-slate-200 dark:border-slate-800 py-2.5 flex justify-between items-center my-2">
+          <span class="font-bold text-slate-700 dark:text-slate-300">Total Diterima:</span>
+          <span id="kwitansi-total" class="text-base font-bold text-emerald-600 dark:text-emerald-400">Rp0</span>
+        </div>
+
+        <!-- Canvas Tanda Tangan -->
+        <div class="space-y-1 pt-1">
+          <div class="flex justify-between items-center">
+            <label class="text-[10px] font-semibold text-slate-500">Tanda Tangan Penerima:</label>
+            <button onclick="clearSignature()" class="text-[10px] text-rose-500 hover:underline">Hapus / Reset</button>
+          </div>
+          <div class="border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900">
+            <canvas id="canvas-signature" width="300" height="110" class="w-full touch-none cursor-crosshair"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="simpanDanCetakKwitansi()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          Cetak / PDF
+        </button>
+        <button onclick="tutupModalKwitansi()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs transition">
+          Selesai
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RIWAYAT ABSENSI -->
   <div id="modal-riwayat" class="hidden fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-4 space-y-3 max-h-[80vh] flex flex-col shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
@@ -291,7 +400,7 @@
     </div>
   </div>
 
-  <!-- Modal Pop-Up Riwayat Pembayaran Gaji (Lunas) -->
+  <!-- MODAL RIWAYAT GAJI -->
   <div id="modal-riwayat-gaji" class="hidden fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-4 space-y-3 max-h-[80vh] flex flex-col shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
@@ -302,8 +411,8 @@
     </div>
   </div>
 
-  <!-- Bottom Navigation Bar (Mobile Native UI) -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 py-3 z-40 transition-colors">
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 py-3 z-30 transition-colors">
     <div class="max-w-md mx-auto grid grid-cols-3 text-center">
       <button onclick="switchTab('absensi')" id="nav-absensi" class="flex flex-col items-center gap-1 text-brand-600 dark:text-indigo-400 font-bold">
         <span class="text-xs">Absensi</span>
@@ -317,12 +426,10 @@
     </div>
   </nav>
 
-  <!-- Script Toggle Mode Terang / Gelap (Theme Switching) -->
   <script>
     function toggleTheme() {
       const htmlEl = document.documentElement;
       const isDark = htmlEl.classList.contains('dark');
-      
       if (isDark) {
         htmlEl.classList.remove('dark');
         localStorage.setItem('theme', 'light');
@@ -337,7 +444,6 @@
       const isDark = document.documentElement.classList.contains('dark');
       const lightIcon = document.getElementById('theme-toggle-light-icon');
       const darkIcon = document.getElementById('theme-toggle-dark-icon');
-      
       if (isDark) {
         if (lightIcon) lightIcon.classList.remove('hidden');
         if (darkIcon) darkIcon.classList.add('hidden');
@@ -347,7 +453,6 @@
       }
     }
 
-    // Inisialisasi tema default dari penyimpanan lokal HP
     (function initTheme() {
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme === 'light') {
