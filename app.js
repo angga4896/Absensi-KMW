@@ -1,19 +1,19 @@
 // URL BACKEND API GOOGLE APPS SCRIPT TERBARU
 const API_URL = "https://script.google.com/macros/s/AKfycbzLK0xQcu9BZELQDn2NK1WlGsCKlUvlI4Bhn9m0mEBEJV3XqhEI4LhWWxBUrnRzkYBnIg/exec";
 
-// KOORDINAT PRESISI KEDAI MATTOWA (Jl. Palawija 7X, Kel. Tamansari, Kota Mataram)
+// KOORDINAT KEDAI MATTOWA (Jl. Palawija 7X, Kel. Tamansari, Kota Mataram)
 const KEDAI_LAT = -8.580793; 
 const KEDAI_LNG = 116.082494; 
-const MAX_RADIUS_METERS = 200; // Radius toleransi presisi (200 Meter)
+const MAX_RADIUS_METERS = 100; 
 
 let html5QrCode = null;
 let isScanning = false;
 let dataKaryawan = [];
 let kalkulasiAktif = null;
+let karyawanDipilih = null;
 
-// Fungsi Menghitung Jarak GPS (Haversine Formula)
 function hitungJarakMeter(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // Radius bumi dalam meter
+  const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = 
@@ -26,10 +26,7 @@ function hitungJarakMeter(lat1, lon1, lat2, lon2) {
 
 function getTodayLocalStr() {
   const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function updateRealtimeClock() {
@@ -126,19 +123,243 @@ function updateDefaultRate() {
   if (!tipeEl || !inputRate) return;
   
   const tipe = tipeEl.value;
-  if (tipe === "Harian") {
-    inputRate.value = 50000;
-  } else if (tipe === "Bulanan") {
-    inputRate.value = 1200000;
-  } else if (tipe === "Mingguan") {
-    inputRate.value = 300000;
+  if (tipe === "Harian") inputRate.value = 50000;
+  else if (tipe === "Bulanan") inputRate.value = 1200000;
+  else if (tipe === "Mingguan") inputRate.value = 300000;
+}
+
+// AMBIL DAFTAR KARYAWAN
+async function loadKaryawan() {
+  try {
+    const res = await fetch(`${API_URL}?action=getKaryawan`);
+    const json = await res.json();
+    
+    if (json.status === "success") {
+      dataKaryawan = json.data || [];
+      
+      let optionsAbsen = '<option value="">-- Pilih Nama Karyawan --</option>';
+      let optionsLaporan = '<option value="">-- Pilih Karyawan --</option>';
+
+      let karyawanAktifList = [];
+      let karyawanNonaktifList = [];
+
+      dataKaryawan.forEach(k => {
+        const id = k.ID_Karyawan || k.id || "";
+        const nama = k.Nama || k.nama || "Tanpa Nama";
+        const stAktif = k.Status_Aktif || "Aktif";
+        const isAktif = stAktif.toLowerCase() === "aktif";
+
+        if (isAktif) {
+          optionsAbsen += `<option value="${id}">${nama} (${id})</option>`;
+          karyawanAktifList.push(k);
+        } else {
+          karyawanNonaktifList.push(k);
+        }
+
+        optionsLaporan += `<option value="${id}">${nama} ${!isAktif ? "(Nonaktif)" : ""}</option>`;
+      });
+
+      const selectAbsen = document.getElementById("absen-karyawan");
+      const selectLaporan = document.getElementById("laporan-karyawan");
+      if (selectAbsen) selectAbsen.innerHTML = optionsAbsen;
+      if (selectLaporan) selectLaporan.innerHTML = optionsLaporan;
+
+      const countAktifEl = document.getElementById("count-karyawan-aktif");
+      const countNonaktifEl = document.getElementById("count-karyawan-nonaktif");
+      if (countAktifEl) countAktifEl.innerText = karyawanAktifList.length;
+      if (countNonaktifEl) countNonaktifEl.innerText = karyawanNonaktifList.length;
+
+      // Render Tampilan Minimalis (Nama & Jabatan Saja)
+      const containerAktif = document.getElementById("list-karyawan-aktif");
+      if (containerAktif) {
+        containerAktif.innerHTML = karyawanAktifList.length === 0 
+          ? '<p class="text-xs text-slate-400 py-3 text-center">Tidak ada karyawan aktif.</p>'
+          : karyawanAktifList.map(k => renderCardKaryawanMinimalis(k)).join("");
+      }
+
+      const containerNonaktif = document.getElementById("list-karyawan-nonaktif");
+      if (containerNonaktif) {
+        containerNonaktif.innerHTML = karyawanNonaktifList.length === 0 
+          ? '<p class="text-xs text-slate-400 py-3 text-center">Tidak ada karyawan nonaktif.</p>'
+          : karyawanNonaktifList.map(k => renderCardKaryawanMinimalis(k)).join("");
+      }
+    }
+  } catch (err) {
+    showToast("Gagal memuat data karyawan.");
   }
 }
 
-// PROSES CEK LOKASI GPS KEDAI MATTOWA (-8.580793, 116.082494)
+// RENDER KARYAWAN MINIMALIS (NAMA & JABATAN SAJA)
+function renderCardKaryawanMinimalis(k) {
+  const id = k.ID_Karyawan || k.id || "";
+  const nama = k.Nama || k.nama || "Tanpa Nama";
+  const jabatan = k.Jabatan || "Staf";
+
+  return `
+    <div onclick="bukaModalDetailKaryawan('${id}')" class="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex justify-between items-center cursor-pointer hover:border-brand-500/50 transition active:scale-[0.98] shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-brand-500/10 text-brand-600 dark:text-indigo-400 font-bold flex items-center justify-center text-xs">
+          ${nama.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <p class="font-bold text-xs text-slate-900 dark:text-slate-100">${nama}</p>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400">${jabatan}</p>
+        </div>
+      </div>
+      <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+    </div>
+  `;
+}
+
+// BUKA MODAL DETAIL KARYAWAN
+function bukaModalDetailKaryawan(idKaryawan) {
+  const k = dataKaryawan.find(item => (item.ID_Karyawan || item.id) === idKaryawan);
+  if (!k) return;
+
+  karyawanDipilih = k;
+  const id = k.ID_Karyawan || k.id;
+  const nama = k.Nama || k.nama;
+  const jabatan = k.Jabatan || "Staf";
+  const tipe = k.Tipe_Gaji || "Harian";
+  const rate = Number(k.Rate_Gaji || 0);
+  const stAktif = (k.Status_Aktif || "Aktif");
+  const isAktif = stAktif.toLowerCase() === "aktif";
+
+  document.getElementById("detail-id").innerText = id;
+  document.getElementById("detail-nama").innerText = nama;
+  document.getElementById("detail-jabatan").innerText = jabatan;
+  document.getElementById("detail-tipe").innerText = tipe;
+  document.getElementById("detail-rate").innerText = `Rp ${rate.toLocaleString('id-ID')}`;
+
+  const badgeStatus = document.getElementById("detail-status-badge");
+  badgeStatus.innerText = stAktif;
+  badgeStatus.className = isAktif 
+    ? "px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+    : "px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30";
+
+  // Action Buttons
+  document.getElementById("btn-action-absen").onclick = () => {
+    tutupModalDetailKaryawan();
+    bukaModalRiwayat(id, nama);
+  };
+
+  document.getElementById("btn-action-gaji").onclick = () => {
+    tutupModalDetailKaryawan();
+    bukaModalRiwayatGaji(id, nama);
+  };
+
+  document.getElementById("btn-action-edit").onclick = () => {
+    tutupModalDetailKaryawan();
+    bukaModalEditKaryawan(k);
+  };
+
+  const btnToggle = document.getElementById("btn-action-toggle");
+  btnToggle.innerText = isAktif ? "Nonaktifkan Karyawan" : "Aktifkan Karyawan";
+  btnToggle.className = isAktif
+    ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold py-2.5 rounded-xl text-xs transition"
+    : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold py-2.5 rounded-xl text-xs transition";
+
+  btnToggle.onclick = async () => {
+    tutupModalDetailKaryawan();
+    await toggleStatusKaryawan(id, isAktif ? "Nonaktif" : "Aktif");
+  };
+
+  const modal = document.getElementById("modal-detail-karyawan");
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+}
+
+function tutupModalDetailKaryawan() {
+  const modal = document.getElementById("modal-detail-karyawan");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+  }
+}
+
+// BUKA MODAL EDIT KARYAWAN
+function bukaModalEditKaryawan(k) {
+  document.getElementById("edit-id").value = k.ID_Karyawan || k.id;
+  document.getElementById("edit-nama").value = k.Nama || k.nama;
+  document.getElementById("edit-jabatan").value = k.Jabatan || "Staf";
+  document.getElementById("edit-tipe-gaji").value = k.Tipe_Gaji || "Harian";
+  document.getElementById("edit-rate-gaji").value = k.Rate_Gaji || 0;
+
+  const modal = document.getElementById("modal-edit-karyawan");
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+}
+
+function tutupModalEditKaryawan() {
+  const modal = document.getElementById("modal-edit-karyawan");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+  }
+}
+
+// HANDLER SUBMIT FORM EDIT KARYAWAN
+const formEditKaryawan = document.getElementById("form-edit-karyawan");
+if (formEditKaryawan) {
+  formEditKaryawan.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById("edit-id").value;
+    const nama = document.getElementById("edit-nama").value;
+    const jabatan = document.getElementById("edit-jabatan").value;
+    const tipe = document.getElementById("edit-tipe-gaji").value;
+    const rate = document.getElementById("edit-rate-gaji").value;
+
+    showToast("Menyimpan perubahan...");
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "tambahKaryawan", // Endpoint ini otomatis mengupdate jika ID cocok / menambah baru
+          id_karyawan: id,
+          nama: nama,
+          jabatan: jabatan,
+          tipe_gaji: tipe,
+          rate_gaji: rate
+        })
+      });
+
+      const json = await res.json();
+      if (json.status === "success") {
+        showToast("Data Karyawan Berhasil Diperbarui!");
+        tutupModalEditKaryawan();
+        loadKaryawan();
+      } else {
+        showToast(json.message || "Gagal mengubah data");
+      }
+    } catch (err) {
+      showToast("Gagal terhubung ke server.");
+    }
+  });
+}
+
+// MODAL TAMBAH KARYAWAN BARU (VIA FAB)
+function bukaModalTambahKaryawan() {
+  const modal = document.getElementById("modal-tambah-karyawan");
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+}
+
+function tutupModalTambahKaryawan() {
+  const modal = document.getElementById("modal-tambah-karyawan");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+  }
+}
+
+// GEOLOCATION ABSENSI
 function verifikasiDanAbsen(idKaryawan, statusCustom, catatanCustom) {
   if (!navigator.geolocation) {
-    showToast("Fitur GPS lokasi tidak didukung di HP/browser ini.");
+    showToast("Fitur GPS lokasi tidak didukung di HP ini.");
     return;
   }
 
@@ -148,26 +369,23 @@ function verifikasiDanAbsen(idKaryawan, statusCustom, catatanCustom) {
     (position) => {
       const userLat = position.coords.latitude;
       const userLng = position.coords.longitude;
-
-      // Hitung Jarak pengguna dari Kedai Mattowa
       const jarakM = hitungJarakMeter(userLat, userLng, KEDAI_LAT, KEDAI_LNG);
 
       if (jarakM > MAX_RADIUS_METERS) {
-        showToast(`Absen Ditolak! Anda berada di luar area Kedai Mattowa (${jarakM}m dari toko).`);
+        showToast(`Absen Ditolak! Anda di luar area Kedai (${jarakM}m dari lokasi).`);
         return;
       }
 
       const labelLokasi = `Kel. Tamansari (${jarakM}m dari Kedai)`;
       kirimAbsensiKeServer(idKaryawan, statusCustom, catatanCustom, labelLokasi, userLat, userLng);
     },
-    (error) => {
-      showToast("Gagal mengambil lokasi! Harap aktifkan fitur GPS di HP Anda.");
+    () => {
+      showToast("Gagal mengambil lokasi! Harap aktifkan GPS HP Anda.");
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
-// KIRIM DATA KE BACKEND SHEETS
 async function kirimAbsensiKeServer(idKaryawan, statusCustom, catatanCustom, labelLokasi, lat, lng) {
   showToast("Menyimpan Absensi...");
   const todayLocalStr = getTodayLocalStr();
@@ -197,11 +415,10 @@ async function kirimAbsensiKeServer(idKaryawan, statusCustom, catatanCustom, lab
       showToast(json.message || "Gagal menyimpan absensi");
     }
   } catch (err) {
-    showToast("Gagal terhubung ke server Google Sheets.");
+    showToast("Gagal terhubung ke server.");
   }
 }
 
-// FORM ABSENSI SUBMIT HANDLER
 const formAbsensi = document.getElementById("form-absensi");
 if (formAbsensi) {
   formAbsensi.addEventListener("submit", (e) => {
@@ -222,7 +439,6 @@ if (formAbsensi) {
   });
 }
 
-// MENARIK STATUS ABSENSI HARI INI
 async function loadAbsensiHariIni() {
   const container = document.getElementById("list-absen-hari-ini");
   const totalBadge = document.getElementById("total-absen-today");
@@ -274,97 +490,7 @@ async function loadAbsensiHariIni() {
   }
 }
 
-// MENARIK KARYAWAN AKTIF & NONAKTIF
-async function loadKaryawan() {
-  try {
-    const res = await fetch(`${API_URL}?action=getKaryawan`);
-    const json = await res.json();
-    
-    if (json.status === "success") {
-      dataKaryawan = json.data || [];
-      
-      let optionsAbsen = '<option value="">-- Pilih Nama Karyawan --</option>';
-      let optionsLaporan = '<option value="">-- Pilih Karyawan --</option>';
-
-      let karyawanAktifList = [];
-      let karyawanNonaktifList = [];
-
-      dataKaryawan.forEach(k => {
-        const id = k.ID_Karyawan || k.id || "";
-        const nama = k.Nama || k.nama || "Tanpa Nama";
-        const stAktif = k.Status_Aktif || "Aktif";
-        const isAktif = stAktif.toLowerCase() === "aktif";
-
-        if (isAktif) {
-          optionsAbsen += `<option value="${id}">${nama} (${id})</option>`;
-          karyawanAktifList.push(k);
-        } else {
-          karyawanNonaktifList.push(k);
-        }
-
-        optionsLaporan += `<option value="${id}">${nama} ${!isAktif ? "(Nonaktif)" : ""}</option>`;
-      });
-
-      const selectAbsen = document.getElementById("absen-karyawan");
-      const selectLaporan = document.getElementById("laporan-karyawan");
-      if (selectAbsen) selectAbsen.innerHTML = optionsAbsen;
-      if (selectLaporan) selectLaporan.innerHTML = optionsLaporan;
-
-      const countAktifEl = document.getElementById("count-karyawan-aktif");
-      const countNonaktifEl = document.getElementById("count-karyawan-nonaktif");
-      if (countAktifEl) countAktifEl.innerText = karyawanAktifList.length;
-      if (countNonaktifEl) countNonaktifEl.innerText = karyawanNonaktifList.length;
-
-      const containerAktif = document.getElementById("list-karyawan-aktif");
-      if (containerAktif) {
-        containerAktif.innerHTML = karyawanAktifList.length === 0 
-          ? '<p class="text-xs text-slate-400 py-3 text-center">Tidak ada karyawan aktif.</p>'
-          : karyawanAktifList.map(k => renderCardKaryawan(k, true)).join("");
-      }
-
-      const containerNonaktif = document.getElementById("list-karyawan-nonaktif");
-      if (containerNonaktif) {
-        containerNonaktif.innerHTML = karyawanNonaktifList.length === 0 
-          ? '<p class="text-xs text-slate-400 py-3 text-center">Tidak ada karyawan nonaktif.</p>'
-          : karyawanNonaktifList.map(k => renderCardKaryawan(k, false)).join("");
-      }
-    }
-  } catch (err) {
-    showToast("Gagal memuat data karyawan.");
-  }
-}
-
-function renderCardKaryawan(k, isAktif) {
-  const id = k.ID_Karyawan || k.id || "";
-  const nama = k.Nama || k.nama || "Tanpa Nama";
-  const jabatan = k.Jabatan || "Staf";
-  const tipe = k.Tipe_Gaji || "-";
-  const rate = Number(k.Rate_Gaji || 0);
-
-  return `
-    <div class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-xl flex justify-between items-center text-xs mb-2">
-      <div>
-        <p class="font-bold text-slate-900 dark:text-slate-200">${nama}</p>
-        <p class="text-[10px] text-slate-500 dark:text-slate-400">${jabatan} &bull; <span class="text-brand-600 dark:text-indigo-400 font-medium">${tipe}</span> &bull; Rp ${rate.toLocaleString('id-ID')}</p>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <button onclick="toggleStatusKaryawan('${id}', '${isAktif ? 'Nonaktif' : 'Aktif'}')" class="border font-semibold px-2 py-1 rounded-lg text-[10px] transition ${isAktif ? 'bg-rose-500/10 text-rose-600 border-rose-500/30' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'}">
-          ${isAktif ? 'Nonaktifkan' : 'Aktifkan'}
-        </button>
-        <button onclick="bukaModalRiwayat('${id}', '${nama}')" class="bg-indigo-500/10 text-indigo-600 border border-indigo-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
-          Absen
-        </button>
-        <button onclick="bukaModalRiwayatGaji('${id}', '${nama}')" class="bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 font-semibold px-2 py-1 rounded-lg text-[10px] transition">
-          Gaji
-        </button>
-      </div>
-    </div>
-  `;
-}
-
 async function toggleStatusKaryawan(idKaryawan, statusBaru) {
-  if (!confirm(`Ubah status karyawan ini menjadi ${statusBaru}?`)) return;
-
   showToast("Memproses...");
   try {
     const res = await fetch(API_URL, {
@@ -389,7 +515,7 @@ async function toggleStatusKaryawan(idKaryawan, statusBaru) {
   }
 }
 
-// MODAL RIWAYAT ABSENSI
+// RIWAYAT ABSEN MODAL
 async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat");
   const modalNama = document.getElementById("modal-nama-karyawan");
@@ -399,7 +525,6 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
 
   modalNama.innerText = namaKaryawan;
   modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Memuat riwayat...</p>';
-  
   modal.classList.remove("hidden");
   modal.style.display = 'flex';
 
@@ -409,7 +534,6 @@ async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
 
     if (json.status === "success") {
       const riwayat = json.data || [];
-
       if (riwayat.length === 0) {
         modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Belum ada catatan absensi.</p>';
         return;
@@ -447,7 +571,7 @@ function tutupModalRiwayat() {
   }
 }
 
-// MODAL RIWAYAT GAJI
+// RIWAYAT GAJI MODAL
 async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat-gaji");
   const modalNama = document.getElementById("modal-gaji-nama-karyawan");
@@ -457,7 +581,6 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
 
   modalNama.innerText = namaKaryawan;
   modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Memuat riwayat gaji...</p>';
-  
   modal.classList.remove("hidden");
   modal.style.display = 'flex';
 
@@ -467,7 +590,6 @@ async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
 
     if (json.status === "success") {
       const riwayat = json.data || [];
-
       if (riwayat.length === 0) {
         modalContent.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">Belum ada riwayat gaji yang dibayar.</p>';
         return;
@@ -506,7 +628,6 @@ function tutupModalRiwayatGaji() {
   }
 }
 
-// FORM TAMBAH KARYAWAN
 const formTambahKaryawan = document.getElementById("form-tambah-karyawan");
 if (formTambahKaryawan) {
   formTambahKaryawan.addEventListener("submit", async (e) => {
@@ -535,7 +656,7 @@ if (formTambahKaryawan) {
       if (json.status === "success") {
         showToast("Karyawan Berhasil Ditambahkan!");
         formTambahKaryawan.reset();
-        updateDefaultRate();
+        tutupModalTambahKaryawan();
         loadKaryawan();
         loadAbsensiHariIni();
       } else {
@@ -547,7 +668,6 @@ if (formTambahKaryawan) {
   });
 }
 
-// PROSES HITUNG GAJI
 const btnHitungGaji = document.getElementById("btn-hitung-gaji");
 if (btnHitungGaji) {
   btnHitungGaji.addEventListener("click", async () => {
@@ -607,7 +727,6 @@ if (btnHitungGaji) {
   });
 }
 
-// BAYAR GAJI
 const btnBayarGaji = document.getElementById("btn-bayar-gaji");
 if (btnBayarGaji) {
   btnBayarGaji.addEventListener("click", async () => {
