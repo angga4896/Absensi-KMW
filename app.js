@@ -1,4 +1,4 @@
-// URL BACKEND API GOOGLE APPS SCRIPT TERBARU
+// URL BACKEND API GOOGLE APPS SCRIPT
 const API_URL = "https://script.google.com/macros/s/AKfycbzLK0xQcu9BZELQDn2NK1WlGsCKlUvlI4Bhn9m0mEBEJV3XqhEI4LhWWxBUrnRzkYBnIg/exec";
 
 // KOORDINAT KEDAI MATTOWA (Jl. Palawija 7X, Kel. Tamansari, Kota Mataram)
@@ -6,11 +6,13 @@ const KEDAI_LAT = -8.580793;
 const KEDAI_LNG = 116.082494; 
 const MAX_RADIUS_METERS = 100; 
 
-let html5QrCode = null;
-let isScanning = false;
 let dataKaryawan = [];
 let kalkulasiAktif = null;
 let karyawanDipilih = null;
+
+let canvasSig = null;
+let ctxSig = null;
+let isDrawing = false;
 
 function hitungJarakMeter(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -169,7 +171,6 @@ async function loadKaryawan() {
       if (countAktifEl) countAktifEl.innerText = karyawanAktifList.length;
       if (countNonaktifEl) countNonaktifEl.innerText = karyawanNonaktifList.length;
 
-      // Render Tampilan Minimalis (Nama & Jabatan Saja)
       const containerAktif = document.getElementById("list-karyawan-aktif");
       if (containerAktif) {
         containerAktif.innerHTML = karyawanAktifList.length === 0 
@@ -189,7 +190,6 @@ async function loadKaryawan() {
   }
 }
 
-// RENDER KARYAWAN MINIMALIS (NAMA & JABATAN SAJA)
 function renderCardKaryawanMinimalis(k) {
   const id = k.ID_Karyawan || k.id || "";
   const nama = k.Nama || k.nama || "Tanpa Nama";
@@ -213,7 +213,6 @@ function renderCardKaryawanMinimalis(k) {
   `;
 }
 
-// BUKA MODAL DETAIL KARYAWAN
 function bukaModalDetailKaryawan(idKaryawan) {
   const k = dataKaryawan.find(item => (item.ID_Karyawan || item.id) === idKaryawan);
   if (!k) return;
@@ -239,7 +238,6 @@ function bukaModalDetailKaryawan(idKaryawan) {
     ? "px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
     : "px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30";
 
-  // Action Buttons
   document.getElementById("btn-action-absen").onclick = () => {
     tutupModalDetailKaryawan();
     bukaModalRiwayat(id, nama);
@@ -279,7 +277,6 @@ function tutupModalDetailKaryawan() {
   }
 }
 
-// BUKA MODAL EDIT KARYAWAN
 function bukaModalEditKaryawan(k) {
   document.getElementById("edit-id").value = k.ID_Karyawan || k.id;
   document.getElementById("edit-nama").value = k.Nama || k.nama;
@@ -300,7 +297,6 @@ function tutupModalEditKaryawan() {
   }
 }
 
-// HANDLER SUBMIT FORM EDIT KARYAWAN
 const formEditKaryawan = document.getElementById("form-edit-karyawan");
 if (formEditKaryawan) {
   formEditKaryawan.addEventListener("submit", async (e) => {
@@ -318,7 +314,7 @@ if (formEditKaryawan) {
       const res = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({
-          action: "tambahKaryawan", // Endpoint ini otomatis mengupdate jika ID cocok / menambah baru
+          action: "tambahKaryawan",
           id_karyawan: id,
           nama: nama,
           jabatan: jabatan,
@@ -341,7 +337,6 @@ if (formEditKaryawan) {
   });
 }
 
-// MODAL TAMBAH KARYAWAN BARU (VIA FAB)
 function bukaModalTambahKaryawan() {
   const modal = document.getElementById("modal-tambah-karyawan");
   modal.classList.remove("hidden");
@@ -354,6 +349,83 @@ function tutupModalTambahKaryawan() {
     modal.classList.add("hidden");
     modal.style.display = "none";
   }
+}
+
+// LOGIKA KWITANSI & TANDA TANGAN DIGITAL
+function initSignaturePad() {
+  canvasSig = document.getElementById("canvas-signature");
+  if (!canvasSig) return;
+  ctxSig = canvasSig.getContext("2d");
+
+  ctxSig.strokeStyle = "#2563eb";
+  ctxSig.lineWidth = 2.5;
+  ctxSig.lineCap = "round";
+
+  canvasSig.addEventListener("mousedown", startDrawing);
+  canvasSig.addEventListener("mousemove", draw);
+  canvasSig.addEventListener("mouseup", stopDrawing);
+
+  canvasSig.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    startDrawing(e.touches[0]);
+  });
+  canvasSig.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    draw(e.touches[0]);
+  });
+  canvasSig.addEventListener("touchend", stopDrawing);
+}
+
+function startDrawing(e) {
+  isDrawing = true;
+  const rect = canvasSig.getBoundingClientRect();
+  ctxSig.beginPath();
+  ctxSig.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const rect = canvasSig.getBoundingClientRect();
+  ctxSig.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+  ctxSig.stroke();
+}
+
+function stopDrawing() {
+  isDrawing = false;
+}
+
+function clearSignature() {
+  if (ctxSig && canvasSig) {
+    ctxSig.clearRect(0, 0, canvasSig.width, canvasSig.height);
+  }
+}
+
+function bukaModalKwitansi(nama, jabatan, periode, total) {
+  document.getElementById("kwitansi-no").innerText = `KW-${Date.now().toString().slice(-6)}`;
+  document.getElementById("kwitansi-tgl").innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  document.getElementById("kwitansi-nama").innerText = nama;
+  document.getElementById("kwitansi-jabatan").innerText = jabatan;
+  document.getElementById("kwitansi-periode").innerText = periode.replace(/_sd_/g, ' s/d ');
+  document.getElementById("kwitansi-total").innerText = `Rp ${Number(total).toLocaleString('id-ID')}`;
+
+  const modal = document.getElementById("modal-kwitansi");
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+
+  setTimeout(initSignaturePad, 200);
+}
+
+function tutupModalKwitansi() {
+  const modal = document.getElementById("modal-kwitansi");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+  }
+  clearSignature();
+}
+
+function simpanDanCetakKwitansi() {
+  window.print();
 }
 
 // GEOLOCATION ABSENSI
@@ -515,7 +587,6 @@ async function toggleStatusKaryawan(idKaryawan, statusBaru) {
   }
 }
 
-// RIWAYAT ABSEN MODAL
 async function bukaModalRiwayat(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat");
   const modalNama = document.getElementById("modal-nama-karyawan");
@@ -571,7 +642,6 @@ function tutupModalRiwayat() {
   }
 }
 
-// RIWAYAT GAJI MODAL
 async function bukaModalRiwayatGaji(idKaryawan, namaKaryawan) {
   const modal = document.getElementById("modal-riwayat-gaji");
   const modalNama = document.getElementById("modal-gaji-nama-karyawan");
@@ -731,7 +801,7 @@ const btnBayarGaji = document.getElementById("btn-bayar-gaji");
 if (btnBayarGaji) {
   btnBayarGaji.addEventListener("click", async () => {
     if (!kalkulasiAktif) return;
-    if (!confirm("Tandai gaji ini sebagai SUDAH DIBAYAR?")) return;
+    if (!confirm("Tandai gaji ini sebagai SUDAH DIBAYAR dan buat kwitansi?")) return;
 
     showToast("Memproses Pembayaran...");
 
@@ -749,6 +819,12 @@ if (btnBayarGaji) {
       const json = await res.json();
       if (json.status === "success") {
         showToast("Gaji Berhasil Dibayar!");
+        
+        const k = dataKaryawan.find(item => (item.ID_Karyawan || item.id) === kalkulasiAktif.idKaryawan);
+        const nama = k ? (k.Nama || k.nama) : "Karyawan";
+        const jabatan = k ? (k.Jabatan || "Staf") : "Staf";
+
+        bukaModalKwitansi(nama, jabatan, kalkulasiAktif.bulan, kalkulasiAktif.total);
         btnHitungGaji.click();
       } else {
         showToast(json.message);
